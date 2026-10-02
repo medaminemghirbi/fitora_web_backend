@@ -38,7 +38,7 @@ module Api
           data = { version: update.version, title: update.title, published_by: current_user.full_name }
 
           User.superadmin.active.where.not(id: current_user.id).find_each do |superadmin|
-            Notifications::Push.call(
+            Notification.push(
               recipient: superadmin, kind: "system_update", data: data, url: "/superadmin/updates",
               dedup_key: "system_update-#{update.id}-#{superadmin.id}", subject: update
             )
@@ -47,7 +47,7 @@ module Api
           # Every customer sees the release notes too, on their own read-only
           # page — superadmins get the editable /superadmin/updates instead.
           User.admin.active.find_each do |admin|
-            Notifications::Push.call(
+            Notification.push(
               recipient: admin, kind: "system_update", data: data, url: "/admin/updates",
               dedup_key: "system_update-#{update.id}-#{admin.id}", subject: update
             )

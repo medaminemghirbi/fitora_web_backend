@@ -2,7 +2,7 @@
 #
 # Code-defined, like Permission: which steps exist is a property of the
 # product, not of a tenant. What varies per company is how far through it
-# is, and that is derived — see Onboarding::State.
+# is, and that is derived — see OnboardingState.
 #
 # Every step is either satisfied by DATA the company owns (it has an
 # activity, it has a plan) or, where there is no such data, by the admin

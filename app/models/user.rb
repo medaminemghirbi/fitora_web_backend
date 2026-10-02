@@ -92,4 +92,36 @@ class User < ApplicationRecord
 
     update!(active_company: company)
   end
+
+  # The first salle always opens (it opens the account); another needs an
+  # account that runs several (Subscription#multi_salle?). No subscription
+  # beside an existing salle is no plan at all.
+  def may_open_salle?
+    !companies.exists? || subscription&.multi_salle? || false
+  end
+
+  # ---- what this login can do ---------------------------------------------
+  # The single source of truth behind /me/permissions and /bootstrap. Every
+  # company has every feature, so the admin gets every permission the
+  # product exposes; staff get their assigned Role's list; a platform
+  # superadmin gets none (the /superadmin surface isn't capability-gated).
+
+  def permission_keys
+    return [] if superadmin?
+    return Permission::ALL if admin?
+
+    (staff_member ? staff_member.permission_keys : []) & Permission::ALL
+  end
+
+  # The role those permissions came from, as { key:, name: }. The admin's
+  # stored "admin" Role row is cosmetic (its name), so new modules light up
+  # for them without re-seeding.
+  def role_summary
+    return nil if superadmin?
+
+    role = admin? ? current_company&.roles&.find_by(key: "admin") : staff_member&.assigned_role
+    return { key: role.key, name: role.name } if role
+
+    admin? ? { key: "admin", name: "Administrateur" } : nil
+  end
 end

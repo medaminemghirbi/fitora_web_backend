@@ -65,7 +65,7 @@ module Api
       end
 
       def render_state
-        render json: { onboarding: Onboarding::State.for(current_company.reload).as_json }
+        render json: { onboarding: current_company.reload.onboarding_state.as_json }
       end
     end
   end

@@ -17,14 +17,13 @@ module Api
 
       def show
         company = current_company
-        resolved = Permissions::Resolve.call(user: current_user)
 
         render json: {
           user: UserSerializer.new(current_user).as_json,
           company: current_user.admin? ? CompanySerializer.new(company).as_json : nil,
           branding: CompanyBrandingSerializer.new(company).as_json,
-          role: resolved.role,
-          permissions: resolved.permissions,
+          role: current_user.role_summary,
+          permissions: current_user.permission_keys,
           modules: company&.enabled_module_keys || [],
           # Which parts of the product this tenant has turned on. Sent to
           # everyone, not just the admin (whose `company` payload also

@@ -32,25 +32,15 @@ module Api
                               .find_by(id: params[:session_id])
           return render(json: { error: "Session not found" }, status: :not_found) if session.nil?
 
-          result = Bookings::Create.call(client: current_client, session: session, by: :member)
-
-          if result.success?
-            render json: { booking: BookingSerializer.new(result.booking).as_json, waitlisted: result.waitlisted },
-                   status: :created
-          else
-            render json: { error: result.error }, status: :unprocessable_content
-          end
+          booking = session.book!(current_client, by: :member)
+          render json: { booking: BookingSerializer.new(booking).as_json, waitlisted: booking.waitlisted? },
+                 status: :created
         end
 
         # POST /api/v1/me/bookings/:id/cancel
         def cancel
-          result = Bookings::Cancel.call(booking: @booking, by: :member)
-
-          if result.success?
-            render json: { booking: BookingSerializer.new(@booking.reload).as_json }
-          else
-            render json: { error: result.error }, status: :unprocessable_content
-          end
+          @booking.cancel!(by: :member)
+          render json: { booking: BookingSerializer.new(@booking.reload).as_json }
         end
 
         private

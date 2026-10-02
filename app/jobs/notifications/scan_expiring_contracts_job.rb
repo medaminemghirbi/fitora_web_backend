@@ -16,7 +16,7 @@ module Notifications
       admin = contract&.company&.admin
       return if admin.nil?
 
-      Notifications::Push.call(
+      Notification.push(
         recipient: admin,
         kind: "contract_expiring",
         subject: period,
@@ -32,7 +32,7 @@ module Notifications
 
     # The member hears it too, on their own app: renewing is their decision.
     def tell_member(period, contract)
-      Notifications::Push.call(
+      Notification.push(
         recipient: contract.client, company: contract.company, kind: "subscription_expiring", subject: period,
         dedup_key: "subscription_expiring:#{period.id}:#{period.expires_at.to_date}", url: "/member/profile",
         data: {

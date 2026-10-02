@@ -56,40 +56,47 @@ module Api
                             .find_by(id: session_params[:activity_id])
         return render json: { error: "Activity not found" }, status: :not_found if activity.nil?
 
-        # An individual session is scheduled *for* one member, booked in the
-        # same transaction — see Sessions::Schedule.
         client_id = params.require(:session).permit(:client_id)[:client_id]
         client = client_id.present? ? current_company.clients.find_by(id: client_id) : nil
         return render json: { error: "Client not found" }, status: :not_found if client_id.present? && client.nil?
 
-        result = Sessions::Schedule.call(activity: activity, attributes: session_params, client: client)
-        return render_errors(result.error) unless result.success?
+        # The activity's capacity unless one is given. No activity-level
+        # price to fall back to — booking is settled against the member's
+        # contract — so a blank price leaves the column default (0).
+        attributes = session_params.to_h.symbolize_keys
+        attributes[:capacity] = attributes[:capacity].presence || activity.capacity
+        attributes.delete(:price) if attributes[:price].blank?
+        session = current_company.sessions.new(attributes)
 
-        render json: { session: SessionSerializer.new(result.session).as_json }, status: :created
+        # An individual session is scheduled *for* one member, who is booked
+        # into it in the same transaction: if the booking cannot go through,
+        # the session never existed.
+        ActiveRecord::Base.transaction do
+          session.save!
+          session.book!(client) if client
+        end
+
+        render json: { session: SessionSerializer.new(session).as_json }, status: :created
       end
 
       # PATCH /api/v1/sessions/:id
       def update
-        result = Sessions::Update.call(session: @session, attributes: session_params.to_h)
-
-        if result.success?
-          render json: { session: SessionSerializer.new(result.session).as_json }
+        if @session.update(session_params)
+          render json: { session: SessionSerializer.new(@session).as_json }
         else
-          render json: { error: result.error }, status: :unprocessable_content
+          render_errors(@session)
         end
       end
 
       # POST /api/v1/sessions/:id/cancel
       def cancel
-        result = Sessions::Cancel.call(session: @session)
-        return render json: { error: result.error, errors: [ result.error ] }, status: :unprocessable_content unless result.success?
-
-        AuditLogs::Record.call(
+        cancelled = @session.cancel!
+        AuditLog.record!(
           company: current_company, user: current_user, action: "session.cancelled",
           auditable: @session,
-          metadata: { activity: @session.activity.name, starts_at: @session.starts_at, bookings_cancelled: result.cancelled_bookings }
+          metadata: { activity: @session.activity.name, starts_at: @session.starts_at, bookings_cancelled: cancelled }
         )
-        render json: { session: SessionSerializer.new(result.session).as_json, bookings_cancelled: result.cancelled_bookings }
+        render json: { session: SessionSerializer.new(@session).as_json, bookings_cancelled: cancelled }
       end
 
       private

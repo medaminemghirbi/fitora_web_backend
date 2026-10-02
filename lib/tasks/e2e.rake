@@ -21,10 +21,10 @@ namespace :e2e do
       first_name: "Olfa", last_name: "Admin", email: "admin@e2e.test", password: password,
       role: :admin, locale: "fr", email_verified_at: Time.current
     )
-    company = Companies::Open.call(
+    company = Company.open!(
       admin: admin,
       attributes: { name: "Salle E2E", currency: "TND", timezone: "Africa/Tunis", locale: "fr" }
-    ).company
+    )
     # Straight to the dashboard, not the first-run setup flow.
     company.update!(setup_dismissed_at: Time.current)
 
@@ -34,13 +34,13 @@ namespace :e2e do
 
     member = Client.create!(first_name: "Salma", last_name: "Member", phone: "+216 20 111 111", email: "member@e2e.test")
     member.join!(company)
-    Contracts::Create.call(client: member, contract_type: plan, activity: yoga, created_by: admin)
+    Contract.sell!(client: member, contract_type: plan, activity: yoga, created_by: admin)
     invitation_token = member.generate_invitation_token!
 
     starts_at = company.time_zone.now.tomorrow.change(hour: 18)
-    Sessions::Create.call(attributes: {
-      activity_id: yoga.id, starts_at: starts_at, ends_at: starts_at + 1.hour, capacity: 12, status: :scheduled
-    })
+    company.sessions.create!(
+      activity: yoga, starts_at: starts_at, ends_at: starts_at + 1.hour, capacity: 12, status: :scheduled
+    )
 
     fixtures = {
       admin: { email: admin.email, password: password },

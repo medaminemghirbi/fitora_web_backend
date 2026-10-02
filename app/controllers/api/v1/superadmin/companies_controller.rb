@@ -59,7 +59,7 @@ module Api
               elsif subscription.plan != was_plan then "subscription.plan_changed"
               else "subscription.billing_period_changed"
               end
-            AuditLogs::Record.call(
+            AuditLog.record!(
               company: @company, user: current_user, action: action,
               auditable: subscription,
               metadata: {
@@ -79,7 +79,7 @@ module Api
         # locale: } }.
         def update_settings
           if @company.update(company_settings_params)
-            AuditLogs::Record.call(
+            AuditLog.record!(
               company: @company, user: current_user, action: "superadmin.settings_updated",
               auditable: @company, metadata: { currency: @company.currency, locale: @company.locale }
             )
@@ -97,7 +97,7 @@ module Api
           admin = @company.admin
           return render json: { error: "This company has no admin account" }, status: :unprocessable_content if admin.nil?
 
-          AuditLogs::Record.call(
+          AuditLog.record!(
             company: @company, user: admin, action: "superadmin.impersonation_started",
             auditable: @company, metadata: { superadmin_id: current_user.id, superadmin_email: current_user.email }
           )
@@ -120,26 +120,24 @@ module Api
         # Payment happens off-app, so this is the only record that it
         # happened at all.
         def create_invoice
-          result = Invoices::Issue.call(subscription: @company.subscription, issued_by: current_user, notes: params[:notes].presence)
+          subscription = @company.subscription
+          return render_errors("This gym has no subscription.") if subscription.nil?
 
-          if result.success?
-            AuditLogs::Record.call(
-              company: @company, user: current_user, action: "subscription.invoice_issued",
-              auditable: result.invoice,
-              metadata: { number: result.invoice.number, period_end: result.invoice.period_end, amount_cents: result.invoice.amount_cents }
-            )
-            Notifications::Push.call(
-              recipient: @company.admin, kind: "invoice_issued",
-              data: { number: result.invoice.number, amount: result.invoice.amount, currency: result.invoice.currency },
-              url: "/admin/subscription", dedup_key: "invoice-#{result.invoice.id}"
-            )
-            render json: {
-              invoice: InvoiceSerializer.new(result.invoice).as_json,
-              company: SuperadminCompanySerializer.new(@company.reload).as_json
-            }, status: :created
-          else
-            render json: { error: result.error }, status: :unprocessable_content
-          end
+          invoice = subscription.issue_invoice!(issued_by: current_user, notes: params[:notes].presence)
+          AuditLog.record!(
+            company: @company, user: current_user, action: "subscription.invoice_issued",
+            auditable: invoice,
+            metadata: { number: invoice.number, period_end: invoice.period_end, amount_cents: invoice.amount_cents }
+          )
+          Notification.push(
+            recipient: @company.admin, kind: "invoice_issued",
+            data: { number: invoice.number, amount: invoice.amount, currency: invoice.currency },
+            url: "/admin/subscription", dedup_key: "invoice-#{invoice.id}"
+          )
+          render json: {
+            invoice: InvoiceSerializer.new(invoice).as_json,
+            company: SuperadminCompanySerializer.new(@company.reload).as_json
+          }, status: :created
         end
 
         # DELETE /api/v1/superadmin/companies/:id/invoices/:invoice_id — an
@@ -151,7 +149,7 @@ module Api
           number = invoice.number
           invoice.destroy!
 
-          AuditLogs::Record.call(
+          AuditLog.record!(
             company: @company, user: current_user, action: "subscription.invoice_voided",
             auditable: @company, metadata: { number: number }
           )

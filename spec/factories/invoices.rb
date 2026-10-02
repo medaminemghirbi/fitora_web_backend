@@ -31,7 +31,7 @@ FactoryBot.define do
       period_end { Date.current - 10 }
     end
 
-    # The free days signup gives away — see Companies::Open.
+    # The free days signup gives away — see Subscription.start_trial!.
     trait :trial do
       trial { true }
       amount_cents { 0 }

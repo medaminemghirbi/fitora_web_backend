@@ -1918,6 +1918,10 @@ paths:
                 properties:
                   error:
                     type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
                 required:
                 - error
   "/api/v1/bookings/{id}":
@@ -2234,6 +2238,10 @@ paths:
                 properties:
                   error:
                     type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
                 required:
                 - error
   "/api/v1/bootstrap":
@@ -2636,6 +2644,8 @@ paths:
                       plan:
                         type: string
                       member_app:
+                        type: boolean
+                      multi_salle:
                         type: boolean
                     required:
                     - active
@@ -4589,6 +4599,10 @@ paths:
                 properties:
                   error:
                     type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
                 required:
                 - error
   "/api/v1/companies":
@@ -7352,6 +7366,10 @@ paths:
                 properties:
                   error:
                     type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
                 required:
                 - error
     put:
@@ -7583,6 +7601,10 @@ paths:
                 properties:
                   error:
                     type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
                 required:
                 - error
   "/api/v1/contracts/{id}/receipt":
@@ -8530,6 +8552,10 @@ paths:
                 properties:
                   error:
                     type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
                 required:
                 - error
   "/api/v1/me/bookings/{id}/cancel":
@@ -12153,6 +12179,8 @@ paths:
                         type:
                         - integer
                         - 'null'
+                      multi_salle:
+                        type: boolean
                     required:
                     - id
                     - active
@@ -12632,6 +12660,8 @@ paths:
                               type: boolean
                             trial_days_left:
                               type: 'null'
+                            multi_salle:
+                              type: boolean
                           required:
                           - id
                           - active
@@ -12879,6 +12909,8 @@ paths:
                             type: boolean
                           trial_days_left:
                             type: 'null'
+                          multi_salle:
+                            type: boolean
                         required:
                         - id
                         - active
@@ -13289,6 +13321,8 @@ paths:
                             type: boolean
                           trial_days_left:
                             type: 'null'
+                          multi_salle:
+                            type: boolean
                         required:
                         - id
                         - active
@@ -13503,6 +13537,8 @@ paths:
                             type: boolean
                           trial_days_left:
                             type: 'null'
+                          multi_salle:
+                            type: boolean
                         required:
                         - id
                         - active
@@ -13914,6 +13950,8 @@ paths:
                             type:
                             - integer
                             - 'null'
+                          multi_salle:
+                            type: boolean
                         required:
                         - id
                         - active

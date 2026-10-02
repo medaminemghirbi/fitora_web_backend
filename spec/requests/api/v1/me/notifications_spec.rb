@@ -13,8 +13,8 @@ RSpec.describe "A member's own notifications", type: :request do
   end
 
   it "tells them when their class is called off" do
-    Bookings::Create.call(client: member, session: session)
-    Sessions::Cancel.call(session: session)
+    session.book!(member)
+    session.cancel!
 
     get "/api/v1/me/notifications", headers: headers
 
@@ -28,24 +28,24 @@ RSpec.describe "A member's own notifications", type: :request do
     session.update!(capacity: 1)
     seated = create(:client, company: company)
     create(:contract, client: seated, contract_type: create(:contract_type, company: company, activity: activity), activity: activity)
-    seat = Bookings::Create.call(client: seated, session: session).booking
-    Bookings::Create.call(client: member, session: session)
+    seat = session.book!(seated)
+    session.book!(member)
 
-    Bookings::Cancel.call(booking: seat)
+    seat.cancel!
 
     expect(member.notifications.pluck(:kind)).to eq([ "waitlist_promoted" ])
   end
 
   it "says nothing to a member without the app" do
     walk_in = create(:client, company: company)
-    Notifications::Push.call(recipient: walk_in, company: company, kind: "session_cancelled", data: {}, url: "/", dedup_key: "x")
+    Notification.push(recipient: walk_in, company: company, kind: "session_cancelled", data: {}, url: "/", dedup_key: "x")
 
     expect(walk_in.notifications).to be_empty
   end
 
   it "marks them read, and only theirs" do
-    Bookings::Create.call(client: member, session: session)
-    Sessions::Cancel.call(session: session)
+    session.book!(member)
+    session.cancel!
     note = member.notifications.first
 
     patch "/api/v1/me/notifications/#{note.id}/read", headers: headers

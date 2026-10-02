@@ -7,7 +7,7 @@
 #
 # Reference data (subscription prices, platform settings, the superadmin
 # login) is db/seeds.rb's; a company's built-in roles are seeded by the app
-# when it opens (Companies::Open).
+# when it opens (Company.open!).
 class CreateGymlySchema < ActiveRecord::Migration[8.1]
   def change
     enable_extension "btree_gist"

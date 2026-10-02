@@ -44,48 +44,33 @@ module Api
         session = current_company.sessions.find_by(id: params[:session_id])
         return render json: { error: "Session not found" }, status: :not_found if session.nil?
 
-        result = Bookings::Create.call(client: client, session: session)
-
-        if result.success?
-          render json: { booking: BookingSerializer.new(result.booking).as_json }, status: :created
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        booking = session.book!(client)
+        render json: { booking: BookingSerializer.new(booking).as_json }, status: :created
       end
 
       # POST /api/v1/bookings/:id/cancel
       def cancel
         return render_forbidden unless BookingPolicy.new(current_user, @booking).cancel?
 
-        result = Bookings::Cancel.call(booking: @booking)
-
-        if result.success?
-          AuditLogs::Record.call(
-            company: @booking.session.company, user: current_user, action: "booking.cancelled",
-            auditable: @booking, metadata: { client: @booking.client.full_name, activity: @booking.session.activity.name }
-          )
-          render json: { booking: BookingSerializer.new(@booking.reload).as_json }
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        @booking.cancel!
+        AuditLog.record!(
+          company: @booking.session.company, user: current_user, action: "booking.cancelled",
+          auditable: @booking, metadata: { client: @booking.client.full_name, activity: @booking.session.activity.name }
+        )
+        render json: { booking: BookingSerializer.new(@booking.reload).as_json }
       end
 
       # POST /api/v1/bookings/:id/remind — "Remind client" button, sends an
-      # SMS via Sms::TunisieSmsClient (Bookings::SendReminder).
+      # SMS (Booking#send_reminder!).
       def remind
         return render_forbidden unless BookingPolicy.new(current_user, @booking).remind?
 
-        result = Bookings::SendReminder.call(booking: @booking)
-
-        if result.success?
-          AuditLogs::Record.call(
-            company: @booking.session.company, user: current_user, action: "booking.reminder_sent",
-            auditable: @booking, metadata: { client: @booking.client.full_name }
-          )
-          render json: { status: "sent" }
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        @booking.send_reminder!
+        AuditLog.record!(
+          company: @booking.session.company, user: current_user, action: "booking.reminder_sent",
+          auditable: @booking, metadata: { client: @booking.client.full_name }
+        )
+        render json: { status: "sent" }
       end
 
       private

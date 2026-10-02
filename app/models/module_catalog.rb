@@ -6,7 +6,7 @@
 # subscription page renders as "what you get", in display order.
 #
 # It used to double as the map from a feature to the permissions it unlocks,
-# which Permissions::Resolve intersected every role against. That second job
+# which the permission resolver intersected every role against. That second job
 # is gone: permissions are Permission::CATALOG's business, and the duplicate
 # list was a bug waiting to happen — "revenue" was missing from it, so it was
 # silently stripped from every permission list the API advertised, the

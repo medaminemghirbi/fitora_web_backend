@@ -8,7 +8,7 @@ class Payment < ApplicationRecord
   enum :status, { paid: 0, partial: 1, refunded: 2, cancelled: 3 }
   # `card` is retained so historical rows keep deserialising, but card
   # payments are out of scope for now — SELECTABLE_METHODS is what any new
-  # or edited payment may use. See Contracts::Create / Payments::Record.
+  # or edited payment may use. See Contract.sell! / Payment.collect!.
   enum :payment_method, { cash: 0, card: 1, bank_transfer: 2, other: 3 }
   SELECTABLE_METHODS = %w[cash bank_transfer other].freeze
 
@@ -20,6 +20,43 @@ class Payment < ApplicationRecord
   validate :payable_belongs_to_this_gym, if: -> { will_save_change_to_contract_period_id? || will_save_change_to_booking_id? }
 
   scope :recent, -> { order(created_at: :desc) }
+
+  # Staff taking money for a contract period or a booking ("Encaisser").
+  # No part payments: with no amount given it settles the payable in full.
+  # An explicit amount is still honoured (e.g. an ad-hoc payment).
+  def self.collect!(client:, company:, created_by:, payment_method:, amount: nil, currency: nil, notes: nil,
+                    contract_period: nil, booking: nil)
+    transaction do
+      # Two clicks on "Encaisser" arrive as two requests. The lock queues
+      # the second behind the first, which then finds nothing left to pay.
+      payable = contract_period || booking
+      payable&.lock!
+      raise Refused, "This is already paid." if payable&.paid?
+
+      payment = create!(
+        client: client, company: company, created_by: created_by,
+        amount: amount.presence || contract_period&.final_price || booking&.amount,
+        currency: currency || company.currency, payment_method: payment_method, notes: notes,
+        status: :paid, paid_at: Time.current,
+        contract_period: contract_period, booking: booking
+      )
+
+      # A payable is paid once its recorded payments cover its price,
+      # unpaid otherwise.
+      if payable
+        price = contract_period ? contract_period.final_price : booking.amount
+        payable.update!(payment_status: payable.payments.reload.paid.sum(:amount) >= price.to_f ? :paid : :unpaid)
+      end
+
+      payment
+    end
+  end
+
+  def refund!
+    raise Refused, "Only paid payments can be refunded." unless paid?
+
+    update!(status: :refunded)
+  end
 
   private
 

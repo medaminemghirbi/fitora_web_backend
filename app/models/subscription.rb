@@ -4,7 +4,7 @@
 # `active` IS the access: every check reads it, nothing computes a date at
 # read time. It is set false by a Gymly superadmin suspending the account,
 # and by the nightly sweep once the last invoice's period has run out and the
-# three days of grace with it (Subscriptions::CloseUnpaid). Issuing an
+# three days of grace with it (Subscription.close_unpaid!). Issuing an
 # invoice sets it back to true.
 #
 # Everything else about paying lives in the invoices: "paid until" is the
@@ -41,6 +41,48 @@ class Subscription < ApplicationRecord
 
   scope :closed, -> { where(active: false) }
 
+  # Opens an admin's account with the free trial: the first period given
+  # away as an invoice like any other, flagged `trial` so the account reads
+  # as trying Gymly rather than as on a plan it never chose. Access is open
+  # because the trial invoice covers today.
+  def self.start_trial!(admin, currency:)
+    subscription = admin.create_subscription!(active: true, billing_period: :monthly, plan: :starter)
+    subscription.invoices.create!(
+      number: Invoice.next_number,
+      period_start: Date.current,
+      period_end: Date.current + (TRIAL_DAYS - 1),
+      amount_cents: 0,
+      trial: true,
+      plan: subscription.plan,
+      currency: currency,
+      billing_period: subscription.billing_period,
+      issued_at: Time.current,
+      notes: "Période d'essai — #{TRIAL_DAYS} jours offerts"
+    )
+    subscription
+  end
+
+  # The nightly sweep: closes access for every account whose last invoice
+  # ran out more than GRACE_DAYS ago — and with it, every salle it covers.
+  # Returns how many were closed.
+  #
+  # Idempotent by design — it only ever moves `active` from true to false,
+  # and an account already closed is skipped. Running it twice, or missing a
+  # night and running it late, changes nothing about the outcome.
+  def self.close_unpaid!
+    closed = 0
+
+    where(active: true).includes(:invoices, admin: :companies).find_each do |subscription|
+      # "Ran out more than three days ago" is counted in the gym's days.
+      next unless Time.use_zone(subscription.time_zone) { subscription.uncovered? }
+
+      subscription.update!(active: false)
+      closed += 1
+    end
+
+    closed
+  end
+
   # The salle the account is billed through: its first. Its name and address
   # head the invoices, and its currency is the one the account pays in.
   def billing_company
@@ -65,7 +107,7 @@ class Subscription < ApplicationRecord
   # Whether the account may open another salle. Starter runs one; Pro runs
   # as many as the admin likes, and so does the trial, for the same reason
   # as the member app. A Starter account that already runs several keeps
-  # them: only opening one more is refused (Companies::Open).
+  # them: only opening one more is refused (User#may_open_salle?).
   def multi_salle?
     pro? || trial?
   end
@@ -166,6 +208,36 @@ class Subscription < ApplicationRecord
 
   def period_cents
     yearly? ? annual_cents : monthly_cents
+  end
+
+  # Records that money arrived: one invoice for the next period the account
+  # has not paid for, at its plan's price, and access opened again for every
+  # salle it covers. Returns the invoice.
+  #
+  # The amount is frozen here, at the tariff of the day. A price change later
+  # must never rewrite a past invoice — the same rule ContractPeriod#base_price
+  # follows for a member's own subscription.
+  def issue_invoice!(issued_by:, notes: nil)
+    period = next_period
+
+    transaction do
+      invoice = invoices.create!(
+        number: Invoice.next_number,
+        period_start: period.first,
+        period_end: period.last,
+        amount_cents: period_cents,
+        plan: plan,
+        currency: currency,
+        billing_period: billing_period || :monthly,
+        issued_at: Time.current,
+        issued_by: issued_by,
+        notes: notes
+      )
+
+      # Paying is what reopens the door; there is nothing else to do.
+      update!(active: true)
+      invoice
+    end
   end
 
   def suspend!

@@ -38,6 +38,133 @@ class Contract < ApplicationRecord
            :pending?, :active?, :expired?, :cancelled?, :unpaid?, :paid?,
            to: :current_period, allow_nil: true
 
+  # Sells a client a plan for an activity, optionally taking the money in
+  # the same transaction, and returns the new ContractPeriod (its #contract
+  # and, when collected, its #payments).
+  #
+  # One Contract per (client, plan, activity): a second purchase of the same
+  # plan for the same activity is a new period under the same contract, not
+  # a new contract; a different activity under the same plan is a genuinely
+  # separate contract.
+  def self.sell!(client:, contract_type:, activity:, created_by:, starts_on: Date.current, discount: 0,
+                 collect_payment: false, payment_method: nil, payment_notes: nil)
+    # The price is the gym's, never the caller's: it's read from the plan's
+    # pricing grid for this activity and frozen onto the period below, so a
+    # client can't be subscribed at a price the frontend made up.
+    base_price = contract_type.price_for(activity)
+    if base_price.nil?
+      # Says what to do, not only what is wrong: whoever hits this is at a
+      # desk with someone waiting, and the fix is two screens away.
+      raise Refused, "\"#{contract_type.name}\" has no price for #{activity.name}. " \
+                     "Set one in Abonnements → Formules before selling it."
+    end
+
+    transaction do
+      # Date#to_time would resolve "starts_on" in the system's local
+      # timezone rather than Time.zone, silently shifting the date by a day
+      # whenever they differ — in_time_zone is the zone-aware conversion.
+      starts_at = starts_on.in_time_zone
+
+      contract = find_or_create_by!(client: client, contract_type: contract_type, activity: activity) do |c|
+        c.company = contract_type.company
+        c.created_by = created_by
+      end
+
+      period = contract.contract_periods.create!(
+        status: :active,
+        starts_at: starts_at,
+        expires_at: starts_at + contract_type.duration_days.days,
+        remaining_bookings: contract_type.unlimited_bookings? ? nil : contract_type.booking_limit,
+        discount: discount,
+        base_price: base_price
+      )
+
+      # No part payments: collecting on creation records the full price.
+      if ActiveModel::Type::Boolean.new.cast(collect_payment)
+        Payment.create!(
+          client: client,
+          company: contract_type.company,
+          contract_period: period,
+          amount: period.final_price,
+          currency: contract_type.currency,
+          payment_method: Payment::SELECTABLE_METHODS.include?(payment_method.to_s) ? payment_method : :cash,
+          status: :paid,
+          paid_at: Time.current,
+          notes: payment_notes,
+          created_by: created_by
+        )
+        period.update!(payment_status: :paid)
+      end
+
+      period
+    end
+  end
+
+  # Adds a new period under this SAME contract — the client's renewal
+  # history stays linked instead of scattering into disconnected rows, while
+  # every existing period is left exactly as it was ("never touch contract
+  # history"). Returns the new period.
+  def renew!
+    plan = contract_type
+    current = current_period
+
+    # Queues behind EVERYTHING already sold, not merely behind the current
+    # term: renew twice in a row and the second period starts where the
+    # first one ends. A term still running is left untouched and keeps its
+    # dates, its price and its remaining sessions until its last day — the
+    # renewal simply waits its turn (#current_period).
+    starts_at = [ covered_through, Time.current ].compact.max
+
+    # A renewal is a new sale, so it takes today's tariff for this
+    # activity — the previous period keeps whatever it was sold at. Falls
+    # back to that older price if the grid row has since been removed.
+    base_price = plan.price_for(activity) || current&.base_price || 0
+
+    contract_periods.create!(
+      status: :active,
+      starts_at: starts_at,
+      expires_at: starts_at + plan.duration_days.days,
+      remaining_bookings: plan.unlimited_bookings? ? nil : plan.booking_limit,
+      discount: current&.discount || 0,
+      base_price: base_price
+    )
+  end
+
+  # Edits the CURRENT period — start date, end date and (while still unpaid)
+  # the discount. Changing the start date re-derives the end date from the
+  # plan's billing period unless an explicit end date is given.
+  def update_current_period!(starts_on: nil, expires_on: nil, discount: nil)
+    period = current_period
+    raise Refused, "No active subscription to edit" if period.nil?
+    raise Refused, "This subscription can no longer be edited" unless period.active? || period.pending?
+
+    attrs = {}
+
+    if starts_on.present?
+      starts_at = Date.parse(starts_on.to_s).in_time_zone
+      attrs[:starts_at] = starts_at
+      attrs[:expires_at] = starts_at + contract_type.duration_days.days
+    end
+
+    attrs[:expires_at] = Date.parse(expires_on.to_s).in_time_zone if expires_on.present?
+
+    if discount.present?
+      raise Refused, "Discount can only change while the subscription is unpaid" unless period.unpaid?
+
+      attrs[:discount] = discount.to_f
+    end
+
+    period.update!(attrs) if attrs.any?
+  rescue ArgumentError
+    raise Refused, "Invalid date"
+  end
+
+  def cancel!
+    raise Refused, "This contract is already cancelled." if cancelled?
+
+    current_period.update!(status: :cancelled)
+  end
+
   # The period IN FORCE TODAY — the latest one that has already started,
   # not simply the latest one on file. The difference is the whole point of
   # renewing early: a renewal queued while the running term still has weeks
@@ -94,7 +221,7 @@ class Contract < ApplicationRecord
 
   # `period:` lets a caller re-check eligibility against an already-locked
   # ContractPeriod row instead of the unlocked current_period lookup — see
-  # Bookings::Create, which re-verifies through a `SELECT ... FOR UPDATE`
+  # Session#book!, which re-verifies through a `SELECT ... FOR UPDATE`
   # row after picking a candidate contract, closing the check-then-act
   # window a concurrent booking against the same contract could otherwise
   # slip through (same class of race the Session capacity lock exists for).

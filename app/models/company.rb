@@ -74,6 +74,59 @@ class Company < ApplicationRecord
   }
 
 
+  # A salle opening on Gymly: the company and its built-in roles (admin,
+  # moderator, coach — a company can re-permission them or add its own from
+  # Settings). The admin's first salle also opens the account, with its free
+  # trial; a later salle joins the account it already has — same plan, same
+  # price, no second trial. Whether the admin may open another at all is
+  # User#may_open_salle?. The admin's session moves onto the new salle.
+  def self.open!(admin:, attributes:)
+    company = new(attributes)
+    company.admin = admin
+
+    transaction do
+      company.save!
+      Role.seed_defaults_for(company)
+      Subscription.start_trial!(admin, currency: company.currency) if admin.subscription.nil?
+      admin.update!(active_company: company)
+    end
+    company
+  end
+
+  # Sets exactly which of the admin's moderators work at this salle.
+  #
+  # A login works at a salle by holding a staff record there, so posting a
+  # moderator creates one — on this salle's role with the same key as their
+  # first post, since roles belong to each salle; the built-in moderator
+  # role when the salle has no such role. Taking them off deletes this
+  # salle's record and nothing else: their other salles, and the login, stay.
+  #
+  # "Moderators" here is every staff login but the coaches. A coach teaches
+  # one salle's timetable from its own Coach record there, so it is not
+  # something to post somewhere else.
+  def post_moderators!(user_ids, by:)
+    user_ids = Array(user_ids).map(&:to_s).compact_blank.uniq
+    # Everyone the admin can post: the non-coach staff logins working at any
+    # of their salles.
+    team = User.staff.where(id: admin.salle_staff_members.where(coach_id: nil).select(:user_id))
+    wanted = team.where(id: user_ids).to_a
+    raise Refused, "Unknown moderator." if wanted.size != user_ids.size
+
+    posted = staff_members.where(coach_id: nil).includes(:user).to_a
+    leaving = posted.reject { |record| user_ids.include?(record.user_id) }
+    joining = wanted.reject { |user| posted.any? { |record| record.user_id == user.id } }
+
+    stranded = leaving.find { |record| record.user.staff_members.count <= 1 }
+    if stranded
+      raise Refused, "#{stranded.full_name} works at no other salle. Deactivate them from the team page instead."
+    end
+
+    transaction do
+      leaving.each { |record| withdraw_moderator!(record, by: by) }
+      joining.each { |user| post_moderator!(user, by: by) }
+    end
+  end
+
   # How this company has configured the engine — a typed CompanySettings, not
   # the raw hash. Read it (`company.settings.feature?(:spaces)`), never
   # `company[:settings]`.
@@ -108,14 +161,14 @@ class Company < ApplicationRecord
 
   # How far through first-time setup this company is — derived from its own
   # data, so a step completed anywhere in the app ticks itself off. See
-  # Onboarding::State.
+  # OnboardingState.
   def onboarding_state
-    Onboarding::State.for(self)
+    OnboardingState.new(self)
   end
 
   # Every company has every feature — the whole product is included. Kept
   # as a method (rather than inlining ModuleCatalog::KEYS everywhere)
-  # because the bootstrap payload, serializers and Permissions::Resolve all
+  # because the bootstrap payload, serializers and User#permission_keys all
   # read "which features does this company have" through here.
   def enabled_module_keys
     [ ModuleCatalog::BASE_KEY ] + ModuleCatalog::KEYS
@@ -205,6 +258,28 @@ class Company < ApplicationRecord
 
   def normalize_settings
     self[:settings] = settings.to_h
+  end
+
+  def post_moderator!(user, by:)
+    key = user.staff_members.where(coach_id: nil).includes(:assigned_role).min_by(&:created_at)&.role_key
+    role = roles.find_by(key: key) || roles.find_by!(key: "moderator")
+    record = staff_members.create!(user: user, assigned_role: role)
+    AuditLog.record!(
+      company: self, user: by, action: "staff.posted",
+      auditable: record, metadata: { staff_email: user.email, role: record.role_key }
+    )
+  end
+
+  def withdraw_moderator!(record, by:)
+    user = record.user
+    # Not left working in a salle they are no longer part of: their next
+    # request resolves to one of the salles they still have.
+    user.update!(active_company: nil) if user.active_company_id == id
+    record.destroy!
+    AuditLog.record!(
+      company: self, user: by, action: "staff.withdrawn",
+      auditable: self, metadata: { staff_email: user.email }
+    )
   end
 
   def settings_values_are_usable

@@ -62,10 +62,36 @@ class Client < ApplicationRecord
     where("first_name ILIKE :t OR last_name ILIKE :t OR phone ILIKE :t OR email ILIKE :t", t: sanitized)
   }
 
+  # What a person who has left Gymly is called on the gyms' books.
+  PLACEHOLDER_FIRST_NAME = "Ancien".freeze
+  PLACEHOLDER_LAST_NAME = "membre".freeze
+
   def self.find_by_email(email)
     return nil if email.blank?
 
     where("lower(email) = ?", email.to_s.downcase.strip).first
+  end
+
+  # Adds someone to a gym and returns them.
+  #
+  # The email identifies the person across the platform, so an address that
+  # already has an account joins that person rather than creating a second
+  # one (#previously_new_record? tells the two apart afterwards). Their
+  # identity is theirs: only what it left blank is filled in. What the gym
+  # writes about them (date of birth, address, notes…) goes on this gym's
+  # membership, never on the shared person.
+  def self.enrol!(company, person:, membership: {})
+    person = person.to_h.stringify_keys
+    membership = membership.to_h.stringify_keys
+    client = find_by_email(person["email"]) || new
+    client.assign_attributes(client.new_record? ? person : person.reject { |key, _| client.public_send(key).present? })
+
+    transaction do
+      client.save!
+      joined = client.join!(company)
+      joined.update!(membership) if membership.any?
+    end
+    client
   end
 
   def full_name
@@ -96,6 +122,64 @@ class Client < ApplicationRecord
   # someone, and when a gym records an email another gym already has.
   def join!(company)
     memberships.find_or_create_by!(company_id: company.id)
+  end
+
+  # A gym letting a member go, and taking what it wrote about them with it.
+  # Returns whether that left nothing to keep, so the person was anonymised.
+  #
+  # The membership — with this gym's notes and its copy of their details — is
+  # deleted, and their upcoming bookings here are cancelled. The contracts and
+  # payments stay: they are this gym's books. Someone still subscribed is
+  # refused: the subscription is ended first, deliberately, not as a side
+  # effect of a delete.
+  def remove_from!(company)
+    if current_contract(company)
+      raise Refused, "This member still has an active subscription. End it before removing them."
+    end
+
+    transaction do
+      bookings_for(company).where(status: %i[confirmed waitlisted]).where(sessions: { starts_at: Time.current.. })
+                           .find_each(&:cancel!)
+      membership_for(company)&.destroy!
+
+      # A person who belongs to no gym and never had a login of their own has
+      # nobody left to keep the record for.
+      if memberships.reload.none? && !login_enabled?
+        anonymise!
+        true
+      else
+        false
+      end
+    end
+  end
+
+  # Erases this person from Gymly while keeping the gyms' books whole.
+  #
+  # Contracts, payments and past bookings stay — a gym's accounts cannot lose
+  # rows because a member left — but nothing on them points at a
+  # recognisable human any more: the name becomes a placeholder, the email,
+  # phone and password go, every gym's copy of their details is wiped, every
+  # upcoming booking is cancelled and every session ends.
+  def anonymise!
+    transaction do
+      bookings.where(status: %i[confirmed waitlisted]).joins(:session).where(sessions: { starts_at: Time.current.. })
+              .find_each(&:cancel!)
+
+      memberships.update_all( # rubocop:disable Rails/SkipsModelValidations
+        Membership::PROFILE_FIELDS.index_with(nil).merge("notes" => nil, "active" => false, "updated_at" => Time.current)
+      )
+
+      # Past validation on purpose: a placeholder has no phone, and the
+      # point is that it has nothing.
+      update_columns( # rubocop:disable Rails/SkipsModelValidations
+        first_name: PLACEHOLDER_FIRST_NAME, last_name: PLACEHOLDER_LAST_NAME,
+        email: nil, phone: nil, password_digest: nil, active: false,
+        email_verified_at: nil, email_verification_token_digest: nil, email_verification_sent_at: nil,
+        reset_password_token_digest: nil, reset_password_sent_at: nil,
+        invitation_token_digest: nil, invitation_sent_at: nil,
+        token_version: token_version + 1, updated_at: Time.current
+      )
+    end
   end
 
   # ---- per-gym views -------------------------------------------------------

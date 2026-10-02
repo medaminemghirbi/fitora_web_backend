@@ -24,7 +24,7 @@ class ContractType < ApplicationRecord
   scope :active, -> { where(active: true) }
 
   # How long one purchase of this plan lasts — computed from billing_period,
-  # used by Contracts::Create/Renew to set expires_at.
+  # used by Contract.sell! / #renew! to set expires_at.
   def duration_days
     DURATION_DAYS_BY_PERIOD.fetch(billing_period)
   end

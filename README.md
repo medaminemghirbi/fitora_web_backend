@@ -136,7 +136,8 @@ constraints), and drops it again.
 ## Project structure
 
 - `app/controllers/api/v1` — versioned JSON API, namespaced by role where relevant (`superadmin/`, `admin/`, `me/`)
-- `app/services` — single-purpose service objects for business logic (bookings, contracts, payroll, recurring schedules, notifications, …)
+- `app/models` — the data and the business rules on it: booking, cancelling, selling a plan, taking a payment are model methods (`Session#book!`, `Booking#cancel!`, `Contract.sell!`, `Payment.collect!`, …). A rule a request breaks raises `ApplicationRecord::Refused`, which the API answers with a 422
+- `app/lib` — code that isn't a business rule: PDF receipts and schedules, spreadsheet reports, dashboard figures, CSV import/export, JWT, the SMS gateway client
 - `app/models/concerns` — shared model behavior (email verification, password reset, photo attachment)
 - `app/jobs` — Sidekiq background jobs, mostly scheduled scans (see `config/sidekiq_cron.yml`)
 - `app/policies` — authorization

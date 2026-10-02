@@ -54,63 +54,43 @@ module Api
         client, plan, activity = sale_parties
         return if performed?
 
-        result = Contracts::Create.call(
+        period = Contract.sell!(
           client: client, contract_type: plan, activity: activity, created_by: current_user,
           starts_on: params[:starts_on].present? ? Date.parse(params[:starts_on]) : Date.current,
           discount: params[:discount].presence || 0,
           collect_payment: params[:collect_payment], payment_method: params[:payment_method]
         )
 
-        return render_errors(result.error) unless result.success?
-
-        AuditLogs::Record.call(
+        AuditLog.record!(
           company: current_company, user: current_user, action: "contract.created",
-          auditable: result.contract, metadata: { client: client.full_name, plan: plan.name }
+          auditable: period.contract, metadata: { client: client.full_name, plan: plan.name }
         )
         render json: {
-          contract: ContractSerializer.new(result.contract).as_json,
-          payment: PaymentSerializer.new(result.payment).as_json
+          contract: ContractSerializer.new(period.contract).as_json,
+          payment: PaymentSerializer.new(period.payments.first).as_json
         }, status: :created
       end
 
       # PATCH /api/v1/contracts/:id — edit the current period (dates, discount)
       def update
-        result = Contracts::UpdatePeriod.call(
-          contract: @contract,
-          starts_on: params[:starts_on], expires_on: params[:expires_on], discount: params[:discount]
-        )
-
-        if result.success?
-          render json: { contract: ContractSerializer.new(result.contract).as_json }
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        @contract.update_current_period!(starts_on: params[:starts_on], expires_on: params[:expires_on], discount: params[:discount])
+        render json: { contract: ContractSerializer.new(@contract.reload).as_json }
       end
 
       # POST /api/v1/contracts/:id/renew
       def renew
-        result = Contracts::Renew.call(contract: @contract, created_by: current_user)
-
-        if result.success?
-          render json: { contract: ContractSerializer.new(result.contract).as_json }, status: :created
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        @contract.renew!
+        render json: { contract: ContractSerializer.new(@contract.reload).as_json }, status: :created
       end
 
       # POST /api/v1/contracts/:id/cancel
       def cancel
-        result = Contracts::Cancel.call(contract: @contract)
-
-        if result.success?
-          AuditLogs::Record.call(
-            company: current_company, user: current_user, action: "contract.cancelled",
-            auditable: @contract, metadata: { client: @contract.client.full_name, plan: @contract.contract_type.name }
-          )
-          render json: { contract: ContractSerializer.new(@contract.reload).as_json }
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        @contract.cancel!
+        AuditLog.record!(
+          company: current_company, user: current_user, action: "contract.cancelled",
+          auditable: @contract, metadata: { client: @contract.client.full_name, plan: @contract.contract_type.name }
+        )
+        render json: { contract: ContractSerializer.new(@contract.reload).as_json }
       end
 
       # DELETE /api/v1/contracts/:id — only once cancelled, so this is
@@ -124,7 +104,7 @@ module Api
 
         metadata = { client: @contract.client.full_name, plan: @contract.contract_type.name }
         @contract.destroy!
-        AuditLogs::Record.call(company: current_company, user: current_user, action: "contract.deleted", auditable: @contract, metadata: metadata)
+        AuditLog.record!(company: current_company, user: current_user, action: "contract.deleted", auditable: @contract, metadata: metadata)
 
         head :no_content
       end

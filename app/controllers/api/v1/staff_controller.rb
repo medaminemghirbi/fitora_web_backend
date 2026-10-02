@@ -32,7 +32,7 @@ module Api
           )
         end
 
-        AuditLogs::Record.call(
+        AuditLog.record!(
           company: current_company, user: current_user, action: "staff.created",
           auditable: staff_member, metadata: { role: staff_member.role_key, staff_email: user.email }
         )
@@ -53,7 +53,7 @@ module Api
 
         if @staff_member.update(attrs)
           if previous_key != @staff_member.reload.role_key
-            AuditLogs::Record.call(
+            AuditLog.record!(
               company: current_company, user: current_user, action: "staff.role_changed",
               auditable: @staff_member, metadata: { from: previous_key, to: @staff_member.role_key }
             )

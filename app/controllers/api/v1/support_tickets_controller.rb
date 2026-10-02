@@ -26,7 +26,7 @@ module Api
         ticket.attachments.attach(params[:attachments]) if params[:attachments].present?
 
         if ticket.save
-          AuditLogs::Record.call(
+          AuditLog.record!(
             company: current_company, user: current_user, action: "support_ticket.created",
             auditable: ticket, metadata: { subject: ticket.subject, kind: ticket.kind }
           )

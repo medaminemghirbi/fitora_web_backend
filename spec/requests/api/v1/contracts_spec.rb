@@ -376,7 +376,7 @@ RSpec.describe "Api::V1::Contracts", type: :request do
     it "drops a contract from expiring once a renewal is queued behind it" do
       renewed = create(:contract, client: create(:client, company: company), contract_type: plan)
       renewed.current_period.update!(status: :active, expires_at: 10.days.from_now, payment_status: :paid)
-      Contracts::Renew.call(contract: renewed, created_by: admin)
+      renewed.renew!
 
       still_running_out = create(:contract, client: create(:client, company: company), contract_type: plan)
       still_running_out.current_period.update!(status: :active, expires_at: 10.days.from_now)
@@ -390,7 +390,7 @@ RSpec.describe "Api::V1::Contracts", type: :request do
     it "still asks for the money on a queued renewal, on top of the running term" do
       renewed = create(:contract, client: create(:client, company: company), contract_type: plan)
       renewed.current_period.update!(status: :active, expires_at: 10.days.from_now, payment_status: :paid)
-      Contracts::Renew.call(contract: renewed, created_by: admin)
+      renewed.renew!
       queued = renewed.reload.next_period
 
       get "/api/v1/contracts", params: { payment: "unpaid" }, headers: auth_headers(admin)
