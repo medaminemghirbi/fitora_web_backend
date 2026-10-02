@@ -778,3 +778,42 @@ salles, the member app and every update.
   salles avec Pro" leading to `/admin/subscription`; the subscription page
   lists several salles with the member app and the updates under
   "Uniquement avec Pro", and warns that Starter stops new salles.
+
+## No service layer (2026-10-02)
+
+The 46 domain service objects in `app/services` are gone. Every rule they
+held is now a method on the model it is about, with the same locks,
+transactions and messages; controllers call one method and render.
+
+| Was | Now |
+|---|---|
+| `Bookings::Create` / `Cancel` / `PromoteFromWaitlist` / `SendReminder` | `Session#book!`, `Booking#cancel!`, `Session#promote_from_waitlist!`, `Booking#send_reminder!` |
+| `Sessions::Create` / `Update` / `Schedule` / `Cancel` | plain `save` / `update` (the coach-overlap constraint becomes a validation error in `Session`), `SessionsController#create`, `Session#cancel!` |
+| `Contracts::Create` / `Renew` / `UpdatePeriod` / `Cancel` | `Contract.sell!` (returns the new period), `#renew!`, `#update_current_period!`, `#cancel!` |
+| `Payments::Record` / `Refund` | `Payment.collect!`, `#refund!` |
+| `Clients::Enrol` / `RemoveFromGym` / `Anonymise` | `Client.enrol!` (+ the sale, in `ClientsController#create`), `#remove_from!`, `#anonymise!` |
+| `Companies::Open` / `PostModerators` | `User#may_open_salle?` + `Company.open!`, `Company#post_moderators!` |
+| `Invoices::Issue`, `Subscriptions::CloseUnpaid` | `Subscription#issue_invoice!`, `Subscription.close_unpaid!`, `Subscription.start_trial!` |
+| `RecurringSchedules::Generate` / `Stop` | `RecurringSchedule#generate_sessions!`, `#stop!` |
+| `Attendance::Mark`, `AuditLogs::Record`, `Notifications::Push` | `AttendanceRecord.mark!`, `AuditLog.record!`, `Notification.push` |
+| `Coaches::SetLogin`, `Permissions::Resolve`, `Onboarding::State` | `Coach#set_login!`, `User#permission_keys` / `#role_summary`, `OnboardingState` |
+| `CheckIns::Create`, `ServiceResult` | deleted (no caller) |
+
+A refused rule raises `ApplicationRecord::Refused`; `ApplicationController`
+answers 422 `{ error, errors }`, the shape a failed validation already had.
+Endpoints that used to answer `{ error }` alone now also carry `errors`
+(additive — both apps read `error`). `ClientsController` keeps its
+`{ error, message, errors }` shape.
+
+What was left in `app/services` is not business logic — PDFs, reports,
+dashboard figures, CSV import/export, JWT, SMS, `Migration::Audit` — and
+moved unchanged to `app/lib` (specs to `spec/lib`). Same constant names.
+
+Every URL, parameter and response is unchanged apart from that `errors`
+array, so the frontend and mobile app need nothing. The service specs became
+model specs under `spec/models/<model>/`; the request specs did not change
+beyond the few that called a service directly.
+
+Backend **1,311 examples, 0 failures** (5 fewer: the dead `CheckIns::Create`
+and two plain-ActiveRecord session specs), coverage 95.4% as before, rubocop
+clean, OpenAPI regenerated.

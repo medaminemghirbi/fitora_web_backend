@@ -3,7 +3,7 @@ module Api
     module Me
       # A member leaving Gymly. Their password confirms it; the gyms keep
       # their books, and nothing on them names this person any more
-      # (Clients::Anonymise).
+      # (Client#anonymise!).
       class AccountsController < BaseController
         before_action :require_client!
 
@@ -13,7 +13,7 @@ module Api
             return render json: { error: "password_invalid", errors: [ "Password is incorrect" ] }, status: :unprocessable_content
           end
 
-          Clients::Anonymise.call(client: current_client)
+          current_client.anonymise!
           head :no_content
         end
       end

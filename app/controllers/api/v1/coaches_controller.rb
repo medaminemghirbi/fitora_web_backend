@@ -56,17 +56,12 @@ module Api
           return render_forbidden("Only the admin can change this login.")
         end
 
-        result = Coaches::SetLogin.call(coach: @coach, email: params[:email], password: params[:password])
-
-        if result.success?
-          AuditLogs::Record.call(
-            company: current_company, user: current_user, action: "coach.login_set",
-            auditable: @coach, metadata: { email: params[:email] }
-          )
-          render json: { coach: CoachSerializer.new(@coach.reload).as_json }
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        @coach.set_login!(email: params[:email], password: params[:password])
+        AuditLog.record!(
+          company: current_company, user: current_user, action: "coach.login_set",
+          auditable: @coach, metadata: { email: params[:email] }
+        )
+        render json: { coach: CoachSerializer.new(@coach.reload).as_json }
       end
 
       private

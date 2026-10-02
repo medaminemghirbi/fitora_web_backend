@@ -11,7 +11,7 @@ module Api
           period = Reports::Period.parse(period_type: params[:period_type], period: params[:period])
           package = Reports::CompanyWorkbook.call(company: current_company, period: period)
 
-          AuditLogs::Record.call(
+          AuditLog.record!(
             company: current_company, user: current_user, action: "report.exported",
             auditable: current_company, metadata: { period: period.slug }
           )

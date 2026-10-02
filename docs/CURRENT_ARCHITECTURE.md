@@ -164,6 +164,10 @@ receipts, payroll, reports, dashboard, notifications, permissions, sms,
 data_exchange, audit_logs). Controllers are thin. This is the right shape
 already.
 
+> **Since 2026-10-02** the service objects are gone: the rules are model
+> methods and what remained (PDFs, reports, CSV, JWT, SMS) is in `app/lib`.
+> See `TARGET_ARCHITECTURE.md` §4 and `PHASE_LOG.md`.
+
 ---
 
 ## 7. Frontend architecture

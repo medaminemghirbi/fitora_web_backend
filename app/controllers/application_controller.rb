@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::API
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable
+  rescue_from ApplicationRecord::Refused, with: :render_refused
   rescue_from ActionController::ParameterMissing, with: :render_bad_request
 
   private
@@ -100,5 +101,9 @@ class ApplicationController < ActionController::API
 
   def render_unprocessable(exception = nil)
     render_errors(exception&.record || [ exception&.message ].compact)
+  end
+
+  def render_refused(exception)
+    render_errors(exception.message)
   end
 end

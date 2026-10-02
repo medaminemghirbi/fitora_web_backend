@@ -128,17 +128,18 @@ RSpec.describe "Api::V1::Bookings", type: :request do
     let(:booking) { create(:booking, client: client, session: session) }
 
     it "sends the reminder and returns sent" do
-      allow(Bookings::SendReminder).to receive(:call).and_return(Bookings::SendReminder::Result.new(success?: true, error: nil))
+      allow(Sms::TunisieSmsClient).to receive(:send_message)
 
       post "/api/v1/bookings/#{booking.id}/remind", headers: auth_headers(admin)
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body["status"]).to eq("sent")
-      expect(Bookings::SendReminder).to have_received(:call).with(booking: booking)
+      expect(Sms::TunisieSmsClient).to have_received(:send_message).once
     end
 
     it "surfaces a gateway/config failure as a 422" do
-      allow(Bookings::SendReminder).to receive(:call).and_return(Bookings::SendReminder::Result.new(success?: false, error: "TUNISIESMS_API_KEY is not set"))
+      allow(Sms::TunisieSmsClient).to receive(:send_message)
+        .and_raise(Sms::TunisieSmsClient::ConfigurationError, "TUNISIESMS_API_KEY is not set")
 
       post "/api/v1/bookings/#{booking.id}/remind", headers: auth_headers(admin)
 

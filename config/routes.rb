@@ -127,7 +127,7 @@ Rails.application.routes.draw do
       # the member's own record (Api::V1::ClientsController#update).
       namespace :me do
         resource :profile, only: [ :show, :update ]
-        # Leaving Gymly altogether — see Clients::Anonymise.
+        # Leaving Gymly altogether — see Client#anonymise!.
         resource :account, only: [ :destroy ]
         resources :notifications, only: [ :index, :show ] do
           member { patch :read }

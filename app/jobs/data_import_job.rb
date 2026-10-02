@@ -28,7 +28,7 @@ class DataImportJob < ApplicationJob
   private
 
   def record_audit(import)
-    AuditLogs::Record.call(
+    AuditLog.record!(
       company: import.company, user: import.user, action: "data.imported", auditable: import.company,
       metadata: { entity: import.entity, created: import.created_count, error_count: import.row_errors.size }
     )

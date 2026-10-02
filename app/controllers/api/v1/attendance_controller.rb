@@ -20,13 +20,8 @@ module Api
         return render json: { error: "Booking not found" }, status: :not_found if booking.nil?
         return render_forbidden unless can_mark?(booking.session)
 
-        result = Attendance::Mark.call(booking: booking, status: params[:status], marked_by: current_user)
-
-        if result.success?
-          render json: { attendance: AttendanceBookingSerializer.new(booking.reload).as_json }
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        AttendanceRecord.mark!(booking: booking, status: params[:status], marked_by: current_user)
+        render json: { attendance: AttendanceBookingSerializer.new(booking.reload).as_json }
       end
 
       private

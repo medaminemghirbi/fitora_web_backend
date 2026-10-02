@@ -11,7 +11,7 @@ RSpec.describe ModuleCatalog do
 
   it "is a display list and nothing else — permissions are Permission's job" do
     # It used to hold a second copy of the permission catalogue, which
-    # Permissions::Resolve intersected every role against. "revenue" was
+    # the permission resolver intersected every role against. "revenue" was
     # missing from that copy, so it was silently stripped from every
     # permission list the API advertised. One list now.
     expect(described_class).not_to respond_to(:permissions_for)

@@ -33,7 +33,7 @@ class ContractPeriod < ApplicationRecord
   end
 
   # base_price is the catalogue price frozen when this period was created
-  # (Contracts::Create / Contracts::Renew) and is never rewritten — so a
+  # (Contract.sell! / Contract#renew!) and is never rewritten — so a
   # later change to the activity's tariff leaves already-sold periods alone.
   # Only the discount, which the admin can still edit while unpaid, moves
   # final_price after the fact.

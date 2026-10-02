@@ -127,8 +127,7 @@ module Api
       # hard-coded map. Admins get every permission; a platform superadmin gets
       # none (the /superadmin surface isn't capability-gated).
       def permissions
-        resolved = Permissions::Resolve.call(user: current_user)
-        render json: { role: resolved.role, permissions: resolved.permissions }
+        render json: { role: current_user.role_summary, permissions: current_user.permission_keys }
       end
 
       private

@@ -64,7 +64,7 @@ module Api
         client = current_company.clients.find_by(id: params[:client_id])
         return render json: { error: "Client not found" }, status: :not_found if client.nil?
 
-        result = Payments::Record.call(
+        payment = Payment.collect!(
           client: client, company: current_company, created_by: current_user,
           amount: params[:amount], payment_method: params[:payment_method], notes: params[:notes],
           # This gym's only: the person may owe other gyms too.
@@ -72,30 +72,21 @@ module Api
           booking: find_payable(client.bookings_for(current_company), params[:booking_id])
         )
 
-        if result.success?
-          AuditLogs::Record.call(
-            company: current_company, user: current_user, action: "payment.recorded",
-            auditable: result.payment, metadata: { client: client.full_name, amount: result.payment.amount, method: result.payment.payment_method }
-          )
-          render json: { payment: PaymentSerializer.new(result.payment).as_json }, status: :created
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        AuditLog.record!(
+          company: current_company, user: current_user, action: "payment.recorded",
+          auditable: payment, metadata: { client: client.full_name, amount: payment.amount, method: payment.payment_method }
+        )
+        render json: { payment: PaymentSerializer.new(payment).as_json }, status: :created
       end
 
       # POST /api/v1/payments/:id/refund
       def refund
-        result = Payments::Refund.call(payment: @payment)
-
-        if result.success?
-          AuditLogs::Record.call(
-            company: current_company, user: current_user, action: "payment.refunded",
-            auditable: @payment, metadata: { client: @payment.client.full_name, amount: @payment.amount }
-          )
-          render json: { payment: PaymentSerializer.new(@payment.reload).as_json }
-        else
-          render json: { error: result.error }, status: :unprocessable_content
-        end
+        @payment.refund!
+        AuditLog.record!(
+          company: current_company, user: current_user, action: "payment.refunded",
+          auditable: @payment, metadata: { client: @payment.client.full_name, amount: @payment.amount }
+        )
+        render json: { payment: PaymentSerializer.new(@payment.reload).as_json }
       end
 
       private

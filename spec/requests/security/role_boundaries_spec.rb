@@ -183,10 +183,8 @@ RSpec.describe "Security: role boundaries", type: :request do
     end
 
     it "is given no permissions at all by the resolver" do
-      result = Permissions::Resolve.call(user: superadmin)
-
-      expect(result.permissions).to be_empty
-      expect(result.role).to be_nil
+      expect(superadmin.permission_keys).to be_empty
+      expect(superadmin.role_summary).to be_nil
     end
   end
 end

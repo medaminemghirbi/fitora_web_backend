@@ -78,7 +78,7 @@ namespace :migration do
         "branding" => -> { CompanyBrandingSerializer.new(company).as_json },
         "settings" => -> { company.settings.to_h },
         "setup flow" => -> { company.onboarding_state.as_json },
-        "admin permissions" => -> { Permissions::Resolve.call(user: company.admin).permissions },
+        "admin permissions" => -> { company.admin.permission_keys },
         # Desk / coach: the schedule, and the roster behind it.
         "schedule" => -> { company.sessions.includes(:activity, :coach, :space).limit(50).map { |s| SessionSerializer.new(s).as_json } },
         "team" => -> { company.staff_members.includes(:user, :role).map { |s| StaffMemberSerializer.new(s).as_json } },

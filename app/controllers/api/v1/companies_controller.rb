@@ -36,16 +36,15 @@ module Api
       # price however many salles it covers; Starter runs one. Becomes the
       # active company immediately.
       def create
-        result = Companies::Open.call(admin: current_user, attributes: company_params)
-        if result.error == Companies::Open::MULTI_SALLE_NOT_INCLUDED
+        unless current_user.may_open_salle?
           return render json: {
             error: "multi_salle_not_included",
             message: "Several salles come with Gymly Pro."
           }, status: :forbidden
         end
-        return render_errors(result.company.errors.any? ? result.company : result.error) unless result.success?
 
-        render json: { company: CompanySerializer.new(result.company).as_json }, status: :created
+        company = Company.open!(admin: current_user, attributes: company_params)
+        render json: { company: CompanySerializer.new(company).as_json }, status: :created
       end
 
       # PATCH /api/v1/company
@@ -74,11 +73,9 @@ module Api
 
       # PUT /api/v1/companies/:id/moderators — { user_ids: [] }: exactly who
       # works at this salle among the admin's moderators. See
-      # Companies::PostModerators.
+      # Company#post_moderators!.
       def update_moderators
-        result = Companies::PostModerators.call(company: @company, user_ids: params[:user_ids], by: current_user)
-        return render_errors(result.error) unless result.success?
-
+        @company.post_moderators!(params[:user_ids], by: current_user)
         render json: network_json
       end
 

@@ -20,12 +20,10 @@ module Api
         schedule = current_company.recurring_schedules.new(schedule_params)
 
         if schedule.save
-          generation = RecurringSchedules::Generate.call(schedule: schedule)
+          generation = schedule.generate_sessions!
           render json: {
             recurring_schedule: RecurringScheduleSerializer.new(schedule.reload).as_json,
-            generated: generation.created_count,
-            skipped: generation.skipped_count,
-            conflicts: generation.conflict_errors
+            **generation
           }, status: :created
         else
           render_errors(schedule)
@@ -33,7 +31,7 @@ module Api
       end
 
       # PATCH /api/v1/recurring_schedules/:id — { active: false } stops a
-      # series (RecurringSchedules::Stop); changing the pattern itself means
+      # series (RecurringSchedule#stop!); changing the pattern itself means
       # creating a new schedule, so generated sessions never silently shift.
       def update
         active = params.key?(:active) ? params[:active] : params.dig(:recurring_schedule, :active)
@@ -42,12 +40,8 @@ module Api
                         status: :unprocessable_content
         end
 
-        result = RecurringSchedules::Stop.call(schedule: @schedule)
-        render json: {
-          recurring_schedule: RecurringScheduleSerializer.new(result.schedule).as_json,
-          cancelled_sessions: result.cancelled_sessions,
-          kept_sessions: result.kept_sessions
-        }
+        outcome = @schedule.stop!
+        render json: { recurring_schedule: RecurringScheduleSerializer.new(@schedule).as_json, **outcome }
       end
 
       private

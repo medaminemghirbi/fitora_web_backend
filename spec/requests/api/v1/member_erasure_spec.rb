@@ -19,7 +19,7 @@ RSpec.describe "Removing and erasing members", type: :request do
     it "anonymises a person nobody else knows" do
       delete "/api/v1/clients/#{member.id}", headers: auth_headers(company.admin)
 
-      expect(member.reload.first_name).to eq(Clients::Anonymise::PLACEHOLDER_FIRST_NAME)
+      expect(member.reload.first_name).to eq(Client::PLACEHOLDER_FIRST_NAME)
       expect(member.phone).to be_nil
     end
 
@@ -28,7 +28,7 @@ RSpec.describe "Removing and erasing members", type: :request do
       member.join!(other)
       delete "/api/v1/clients/#{member.id}", headers: auth_headers(company.admin)
 
-      expect(member.reload.first_name).not_to eq(Clients::Anonymise::PLACEHOLDER_FIRST_NAME)
+      expect(member.reload.first_name).not_to eq(Client::PLACEHOLDER_FIRST_NAME)
       expect(other.clients).to include(member)
     end
 

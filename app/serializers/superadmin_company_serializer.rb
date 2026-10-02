@@ -33,7 +33,7 @@ class SuperadminCompanySerializer
       # longer typed in by hand, so it cannot contradict the history.
       arrears_cents: company.subscription&.arrears_cents || 0,
       # What "payment received" would issue, read off the same methods
-      # Invoices::Issue uses — so the button can say it before anyone clicks,
+      # Subscription#issue_invoice! uses — so the button can say it before anyone clicks,
       # and a trial gym's next period is seen to start when the trial ends.
       next_invoice: next_invoice,
       # What the gym is actually doing with Gymly. An activation decision

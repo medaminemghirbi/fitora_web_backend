@@ -4,6 +4,12 @@ module Api
       before_action :require_company!
       before_action -> { require_capability!(:clients) }
       before_action :set_client, only: [ :show, :update, :invite, :destroy ]
+      # This controller's errors also carry `message`, refused or invalid alike.
+      rescue_from ApplicationRecord::Refused, with: ->(refusal) { render_error(refusal.message) }
+      rescue_from ActiveRecord::RecordInvalid, with: ->(invalid) {
+        messages = invalid.record.errors.full_messages
+        render_error(messages.first, errors: messages)
+      }
 
       STATUS_FILTERS = %w[active inactive contract_active contract_expired no_contract].freeze
 
@@ -73,27 +79,29 @@ module Api
         }
       end
 
-      # POST /api/v1/clients — adds someone to THIS gym, optionally selling
-      # them a plan in the same request. See Clients::Enrol.
+      # POST /api/v1/clients — adds someone to THIS gym (Client.enrol!),
+      # optionally selling them a plan and taking the money in the same
+      # transaction, which is what actually happens at a front desk. A member
+      # who exists but has no subscription because the plan had no price for
+      # that activity is exactly the mess this avoids.
       def create
         return render_forbidden if subscription_params.present? && !capability?(:contracts)
 
-        result = Clients::Enrol.call(
-          company: current_company, created_by: current_user,
-          person: person_params, membership: membership_params, subscription: subscription_params
-        )
-        return render_error(result.error) unless result.success?
+        client = period = nil
+        ActiveRecord::Base.transaction do
+          client = Client.enrol!(current_company, person: person_params, membership: membership_params)
+          period = sell_plan_to(client) if subscription_params.present?
+        end
 
-        client = result.client
-        AuditLogs::Record.call(
+        AuditLog.record!(
           company: current_company, user: current_user,
-          action: result.adopted ? "client.joined" : "client.created",
+          action: client.previously_new_record? ? "client.created" : "client.joined",
           auditable: client, metadata: { name: client.full_name }
         )
         render json: {
           client: ClientSerializer.new(client, company: current_company).as_json,
-          contract: result.contract && ContractSerializer.new(result.contract).as_json,
-          payment: result.payment && PaymentSerializer.new(result.payment).as_json
+          contract: period && ContractSerializer.new(period.contract).as_json,
+          payment: period && PaymentSerializer.new(period.payments.first).as_json
         }, status: :created
       end
 
@@ -120,7 +128,7 @@ module Api
           @client.update!(changes)
         end
 
-        AuditLogs::Record.call(
+        AuditLog.record!(
           company: current_company, user: current_user, action: "client.updated",
           auditable: @client, metadata: { name: @client.full_name }
         )
@@ -146,22 +154,21 @@ module Api
 
         raw = @client.generate_invitation_token!
         AccountMailer.member_invitation(@client, current_company, raw).deliver_later
-        AuditLogs::Record.call(
+        AuditLog.record!(
           company: current_company, user: current_user, action: "client.invited",
           auditable: @client, metadata: { name: @client.full_name }
         )
         render json: { client: ClientSerializer.new(@client, company: current_company).as_json }, status: :accepted
       end
 
-      # DELETE /api/v1/clients/:id — see Clients::RemoveFromGym.
+      # DELETE /api/v1/clients/:id — see Client#remove_from!.
       def destroy
         name = @client.full_name
-        result = Clients::RemoveFromGym.call(client: @client, company: current_company)
-        return render_error(result.error) unless result.success?
+        anonymised = @client.remove_from!(current_company)
 
-        AuditLogs::Record.call(
+        AuditLog.record!(
           company: current_company, user: current_user, action: "client.removed",
-          auditable: @client, metadata: { name: name, anonymised: result.anonymised }
+          auditable: @client, metadata: { name: name, anonymised: anonymised }
         )
         head :no_content
       end
@@ -170,6 +177,23 @@ module Api
 
       def set_client
         @client = current_company.clients.find(params[:id])
+      end
+
+      def sell_plan_to(client)
+        plan = current_company.contract_types.find_by(id: subscription_params[:contract_type_id])
+        raise ApplicationRecord::Refused, "Plan not found" if plan.nil?
+
+        activity = current_company.activities.find_by(id: subscription_params[:activity_id])
+        raise ApplicationRecord::Refused, "Activity not found" if activity.nil?
+
+        Contract.sell!(
+          client: client, contract_type: plan, activity: activity, created_by: current_user,
+          starts_on: subscription_params[:starts_on].presence&.to_date || Date.current,
+          discount: subscription_params[:discount].presence || 0,
+          collect_payment: subscription_params[:collect_payment],
+          payment_method: subscription_params[:payment_method],
+          payment_notes: subscription_params[:payment_notes]
+        )
       end
 
       # The advanced filters, each a no-op when its parameter is absent.
@@ -295,8 +319,8 @@ module Api
         field == "email" ? normalized.downcase : normalized
       end
 
-      def render_error(message, code: nil)
-        render json: { error: code || message, message: message, errors: [ message ] }, status: :unprocessable_content
+      def render_error(message, code: nil, errors: [ message ])
+        render json: { error: code || message, message: message, errors: errors }, status: :unprocessable_content
       end
 
       def client_params

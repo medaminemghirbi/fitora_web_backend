@@ -12,6 +12,7 @@ These were decided explicitly and are not open:
 | Spaces | **Optional per company** | `spaces` exists; a company turns it on in settings. Session creation only asks for a room when it is on. |
 | Naming | **Keep `Contract` / `ContractType` / `ContractPeriod`** | No rename pass. The product still *says* "plan" and "subscription" in the UI; the domain keeps its current words. `Subscription` continues to mean the gym's own SaaS subscription to Gymly. |
 | UI | **Full redesign of every screen** | All four existing shells are rebuilt, plus a new moderator shell. |
+| Business logic (2026-10-02) | **On the models, no service layer** | Each rule is a model method (`Session#book!`, `Contract.sell!`, …); controllers read like CRUD. Supersedes the "services" layer in §1 and §4 as first written. |
 
 Three database-level invariants are carried forward verbatim into the new
 schema, because they are correctness properties the application layer cannot
@@ -34,7 +35,7 @@ ambition disagree, §31 wins.
 ```
 Angular SPA (5 shells)
       │  JWT, /api/v1
-Rails API  ── controllers (thin) ── services (domain logic) ── models (invariants)
+Rails API  ── controllers (thin) ── models (invariants + business rules)
       │
 PostgreSQL          Redis (Sidekiq, ActionCable)
 ```
@@ -132,19 +133,23 @@ single-activity rows valid as-is under the new rule. Access checks read
 ### 3.5 Waitlist
 
 `bookings.status` gains `waitlisted`; `bookings.waitlist_position` (integer,
-nullable). Promotion on cancellation is a service, not a background job, and
-only runs when `settings.feature?(:waitlist)`.
+nullable). Promotion on cancellation happens in the same transaction
+(`Session#promote_from_waitlist!`), not a background job, and only runs when
+`settings.feature?(:waitlist)`.
 
 ## 4. Layering rules
 
 | Layer | May contain | Must not contain |
 |---|---|---|
-| Model | validations, DB-backed invariants, associations, scopes, small predicates (`#active?`, `#covers_activity?`) | multi-record orchestration, HTTP concerns, policy decisions |
-| Service (`app/services/<domain>/`) | one use case per class, `.call`, returns a result or raises | request params, rendering |
-| Controller | authn/authz gating, param permitting, calling one service, rendering one serializer | business rules, conditionals over roles |
+| Model | validations, DB-backed invariants, associations, scopes, predicates, and the business rules as methods (`Session#book!`, `Booking#cancel!`, `Contract.sell!`, `Payment.collect!`) — locks and transactions included | HTTP concerns, policy decisions |
+| `app/lib` | what is not a business rule: PDFs, spreadsheets, dashboard figures, CSV import/export, JWT, the SMS client | request params, rendering |
+| Controller | authn/authz gating, param permitting, calling one model method, rendering one serializer | business rules, conditionals over roles |
 | Serializer | shape of the response for one audience | queries (accept preloaded records) |
 
-A controller action longer than ~15 lines means the service is missing.
+A rule a request breaks raises `ApplicationRecord::Refused` with the reason;
+`ApplicationController` answers it with a 422, the same shape as a failed
+validation. A controller action longer than ~15 lines means a model method is
+missing.
 
 ## 5. Tenancy
 

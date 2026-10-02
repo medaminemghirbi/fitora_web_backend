@@ -10,7 +10,7 @@ module Subscriptions
     queue_as :default
 
     def perform
-      Subscriptions::CloseUnpaid.call
+      Subscription.close_unpaid!
     end
   end
 end

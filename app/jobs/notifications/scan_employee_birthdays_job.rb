@@ -28,7 +28,7 @@ module Notifications
     def notify(admin, subject:, name:, url:)
       return if admin.nil? || name.blank?
 
-      Notifications::Push.call(
+      Notification.push(
         recipient: admin,
         kind: "employee_birthday",
         subject: subject,

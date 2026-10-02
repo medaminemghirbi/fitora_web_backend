@@ -22,7 +22,7 @@ module Api
         # PATCH /api/v1/superadmin/support_tickets/:id/resolve
         def resolve
           @ticket.update!(status: :resolved)
-          AuditLogs::Record.call(
+          AuditLog.record!(
             company: @ticket.company, user: current_user, action: "support_ticket.resolved",
             auditable: @ticket, metadata: { subject: @ticket.subject }
           )

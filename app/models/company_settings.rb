@@ -78,7 +78,7 @@ class CompanySettings
 
   # How far through first-time setup this company is. Two lists of step
   # keys, and nothing else: every step that CAN be derived from data is
-  # derived (see Onboarding::State), so the only things worth storing are
+  # derived (see OnboardingState), so the only things worth storing are
   # the two answers no table holds — "I have looked at this" and "I do not
   # need this". Progress rather than a rule, which is why it is the one
   # section here that is not a setting; it lives with them because it is
