@@ -52,7 +52,7 @@ class ApplicationController < ActionController::API
       Sentry.set_user(id: current_user.id, email: current_user.email)
       Sentry.set_tags(
         account_type: "user", role: current_user.role,
-        company_id: current_user.active_company_id || current_user.staff_member&.company_id
+        company_id: current_user.current_company&.id
       )
     end
   end

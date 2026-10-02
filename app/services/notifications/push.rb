@@ -15,7 +15,7 @@ module Notifications
         # Every company-scoped notification still requires one (a nil company
         # here would silently be a bug in the caller); a platform-level event
         # aimed at a Gymly superadmin has none by design — see Notification#company.
-        company = recipient.active_company || recipient.staff_member&.company
+        company = recipient.current_company
         return nil if company.nil? && !recipient.superadmin?
       end
 

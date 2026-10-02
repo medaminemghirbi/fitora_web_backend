@@ -29,8 +29,6 @@ class Company < ApplicationRecord
   has_many :spaces, dependent: :destroy
   has_many :sessions, dependent: :destroy
   has_many :recurring_schedules, dependent: :destroy
-  has_one :subscription, dependent: :destroy
-  has_many :invoices, dependent: :destroy
   has_many :memberships, dependent: :destroy
   has_many :clients, through: :memberships
   has_many :contract_types, dependent: :destroy
@@ -123,12 +121,23 @@ class Company < ApplicationRecord
     [ ModuleCatalog::BASE_KEY ] + ModuleCatalog::KEYS
   end
 
-  # The company's monthly subscription price, in its own currency — what
-  # its admin's current company-limit tier costs per month. Priced per
-  # ADMIN (the tier governs how many companies they may run), not per
-  # company, so every company under one admin shows the same price.
+  # The admin's account subscription: one for every salle they run. Access,
+  # plan and invoices are the account's, so locking it locks every salle.
+  def subscription
+    admin&.subscription
+  end
+
+  # Whether this salle's members may sign in to their own app — a Pro
+  # account's (or one still on its free trial).
+  def member_app?
+    subscription&.member_app? || false
+  end
+
+  # What the account's plan costs per month, in the currency it is billed
+  # in. The same for every salle under one admin: the plan is priced per
+  # account, however many salles it covers.
   def monthly_subscription_cents
-    SubscriptionPrice.for(currency, company_limit: admin.company_limit).monthly_cents
+    subscription&.monthly_cents || SubscriptionPrice.for(currency, plan: SubscriptionPrice::PLANS.first).monthly_cents
   end
 
   # Platform-wide discount applied to a full year paid up front (info only

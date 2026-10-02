@@ -15,10 +15,11 @@ RSpec.describe "db/seeds.rb" do
     # Minimal bootstrap only — no demo gym/admin/staff/clients.
     expect(User.where(role: :admin).count).to eq(0)
     expect(Company.count).to eq(0)
-    # Name the tier: seeds create one row per tier, and "the TND row" is
-    # whichever Postgres hands back first otherwise.
-    expect(SubscriptionPrice.find_by(currency: "TND", company_limit: 1)&.monthly_cents)
-      .to eq(SubscriptionPrice::DEFAULT_MONTHLY_CENTS)
+    # One row per plan, each at its own starting price.
+    SubscriptionPrice::PLANS.each do |plan|
+      expect(SubscriptionPrice.find_by(currency: "TND", plan: plan)&.monthly_cents)
+        .to eq(SubscriptionPrice::DEFAULT_MONTHLY_CENTS.fetch(plan))
+    end
     expect(PlatformSetting.count).to eq(1)
   end
 

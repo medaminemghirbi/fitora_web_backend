@@ -1,40 +1,74 @@
-# A gym's access to Gymly.
+# An admin's access to Gymly — one per account, covering every salle the
+# admin runs, at one price however many there are.
 #
 # `active` IS the access: every check reads it, nothing computes a date at
-# read time. It is set false by a Gymly superadmin suspending the gym, and by
-# the nightly sweep once the last invoice's period has run out and the three
-# days of grace with it (Subscriptions::CloseUnpaid). Issuing an invoice
-# sets it back to true.
+# read time. It is set false by a Gymly superadmin suspending the account,
+# and by the nightly sweep once the last invoice's period has run out and the
+# three days of grace with it (Subscriptions::CloseUnpaid). Issuing an
+# invoice sets it back to true.
 #
 # Everything else about paying lives in the invoices: "paid until" is the
 # latest period_end, arrears are the periods with no invoice. The free trial
 # is the first period, given away: an invoice like any other, flagged
-# `trial` so the gym is shown as trying Gymly rather than as already on a
-# tier it never chose.
+# `trial` so the account is shown as trying Gymly rather than as already on
+# a plan it never chose.
 class Subscription < ApplicationRecord
-  belongs_to :company
+  belongs_to :admin, class_name: "User", inverse_of: :subscription
+  has_many :invoices, dependent: :destroy
 
   BILLING_PERIODS = { monthly: 0, yearly: 1 }.freeze
+
+  # The two plans Gymly sells. Starter is the whole product for one salle;
+  # Pro adds several salles, the member app, and every update Gymly ships.
+  PLANS = { starter: "starter", pro: "pro" }.freeze
 
   # How long a gym has to settle once the period it paid for has run out,
   # before access closes. Three days catches a transfer that crossed a
   # weekend, and is short enough not to be a free extra month.
   GRACE_DAYS = 3
 
-  # What signup gives away. Everything is included; the salle cap is still
-  # the admin's (User#company_limit).
+  # What signup gives away: the whole product, member app included.
   TRIAL_DAYS = 14
 
   # Explicit attribute so the enum resolves even when the dev server's code
   # reloader runs before the schema cache has picked up the new column.
   attribute :billing_period, :integer
   enum :billing_period, BILLING_PERIODS
+  attribute :plan, :string
+  enum :plan, PLANS, validate: true
 
-  validates :company_id, uniqueness: true
+  validates :admin_id, uniqueness: true
 
   scope :closed, -> { where(active: false) }
 
-  delegate :invoices, to: :company
+  # The salle the account is billed through: its first. Its name and address
+  # head the invoices, and its currency is the one the account pays in.
+  def billing_company
+    admin.companies.min_by(&:created_at)
+  end
+
+  def currency
+    billing_company&.currency || SubscriptionPrice::REFERENCE_CURRENCY
+  end
+
+  # "Today" for the account is today at its first salle.
+  def time_zone
+    billing_company&.time_zone || Time.zone
+  end
+
+  # Whether members may sign in to their own app. Pro sells it; the free
+  # trial shows the whole product, so it is open there too.
+  def member_app?
+    pro? || trial?
+  end
+
+  # Whether the account may open another salle. Starter runs one; Pro runs
+  # as many as the admin likes, and so does the trial, for the same reason
+  # as the member app. A Starter account that already runs several keeps
+  # them: only opening one more is refused (Companies::Open).
+  def multi_salle?
+    pro? || trial?
+  end
 
   # ---- what the invoices say ----------------------------------------------
 
@@ -123,9 +157,15 @@ class Subscription < ApplicationRecord
     [ periods, 1 ].max * period_cents
   end
 
+  def price
+    SubscriptionPrice.for(currency, plan: plan)
+  end
+
+  def monthly_cents = price.monthly_cents
+  def annual_cents = price.annual_cents
+
   def period_cents
-    monthly = company.monthly_subscription_cents.to_i
-    yearly? ? company.annual_subscription_cents.to_i : monthly
+    yearly? ? annual_cents : monthly_cents
   end
 
   def suspend!

@@ -1,66 +1,45 @@
-# The platform's monthly subscription price for one currency AND one
-# company-limit tier — an admin's tier caps how many companies they may
-# run (see User#company_limit), and each tier is priced independently.
-# A company sees its price in its own Company#currency (30 TND for a
-# Tunisian gym, 30 EUR for a European one), not one fixed platform
-# currency. Payment happens outside the app — the superadmin just sets the
-# number the admin sees.
+# What one plan costs per month in one currency. A company sees its price in
+# its own Company#currency (30 TND for a Tunisian gym, 30 EUR for a European
+# one), not one fixed platform currency. The year is twelve months less the
+# platform-wide annual discount (PlatformSetting). Payment happens outside
+# the app — the superadmin just sets the numbers the admin sees.
 class SubscriptionPrice < ApplicationRecord
-  # The currency every tier is first priced in — a (currency, tier)
-  # combination seen for the first time copies its starting price from
-  # here (see .for).
+  # The currency every plan is first priced in — a (currency, plan)
+  # combination seen for the first time copies its starting price from here
+  # (see .for).
   REFERENCE_CURRENCY = "TND"
-  DEFAULT_MONTHLY_CENTS = 16_500
 
-  # UNLIMITED is a sentinel (0), not literal NULL: Postgres doesn't treat
-  # NULL as equal to NULL for uniqueness, so a plain unique index on
-  # [currency, company_limit] couldn't rely on NULL to mean "unlimited"
-  # without risking duplicate rows. User#company_limit still uses nil for
-  # unlimited on its own side — normalize_tier is the one place that gap
-  # is bridged.
-  UNLIMITED = 0
-  TIERS = [ 1, 3, UNLIMITED ].freeze
+  PLANS = Subscription::PLANS.values.freeze
 
-  # Seed multiplier for a (currency, tier) combination that's never been
-  # priced anywhere yet — a starting point only; the superadmin reprices each
-  # one independently from there.
-  DEFAULT_MULTIPLIERS = { 1 => 1.0, 3 => 2.5, UNLIMITED => 5.0 }.freeze
+  # A starting point only, for a plan never priced anywhere yet; the
+  # superadmin reprices each one from there.
+  DEFAULT_MONTHLY_CENTS = { "starter" => 16_500, "pro" => 24_900 }.freeze
 
   validates :currency, presence: true, inclusion: { in: CurrencyCatalog::CODES }
-  validates :currency, uniqueness: { scope: :company_limit }
-  validates :company_limit, inclusion: { in: TIERS }
+  validates :currency, uniqueness: { scope: :plan }
+  validates :plan, inclusion: { in: PLANS }
   validates :monthly_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
-  scope :ordered, -> { order(:company_limit) }
-
-  # The row for a (currency, tier) pair, creating it — seeded from that
-  # same tier's REFERENCE_CURRENCY price, or a multiplier off
-  # DEFAULT_MONTHLY_CENTS when even that doesn't exist yet — so a newly-
-  # seen currency or tier never shows a price gap.
-  def self.for(currency, company_limit:)
+  # The row for a (currency, plan) pair, creating it — seeded from that same
+  # plan's REFERENCE_CURRENCY price, or DEFAULT_MONTHLY_CENTS when even that
+  # doesn't exist yet — so a newly-seen currency never shows a price gap.
+  # An unknown plan reads as Starter rather than raising on bad input.
+  def self.for(currency, plan:)
     currency = currency.presence || REFERENCE_CURRENCY
-    tier = normalize_tier(company_limit)
+    plan = PLANS.include?(plan.to_s) ? plan.to_s : PLANS.first
 
-    find_or_create_by!(currency: currency, company_limit: tier) do |row|
-      row.monthly_cents = seed_monthly_cents(tier)
+    find_or_create_by!(currency: currency, plan: plan) do |row|
+      row.monthly_cents = seed_monthly_cents(plan)
     end
   end
 
-  # User#company_limit uses nil for "unlimited"; this column uses the
-  # UNLIMITED sentinel — bridge the two, and fall back to the base tier
-  # for anything else unrecognized rather than raising on bad input.
-  def self.normalize_tier(company_limit)
-    value = company_limit.nil? ? UNLIMITED : company_limit.to_i
-    TIERS.include?(value) ? value : 1
-  end
-
-  def self.seed_monthly_cents(tier)
-    find_by(currency: REFERENCE_CURRENCY, company_limit: tier)&.monthly_cents ||
-      (DEFAULT_MONTHLY_CENTS * DEFAULT_MULTIPLIERS.fetch(tier, 1.0)).round
+  def self.seed_monthly_cents(plan)
+    find_by(currency: REFERENCE_CURRENCY, plan: plan)&.monthly_cents || DEFAULT_MONTHLY_CENTS.fetch(plan)
   end
   private_class_method :seed_monthly_cents
 
-  def unlimited?
-    company_limit == UNLIMITED
+  # Twelve months less the annual discount, rounded to the cent.
+  def annual_cents(discount = PlatformSetting.current.annual_discount_percent)
+    (monthly_cents * 12 * (100 - discount) / 100.0).round
   end
 end

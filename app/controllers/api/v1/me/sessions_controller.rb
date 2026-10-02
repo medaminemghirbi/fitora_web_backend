@@ -9,11 +9,12 @@ module Api
       # is coming.
       class SessionsController < BaseController
         before_action :require_client!
+        before_action :require_member_app!
         before_action :require_member_company!
 
         # GET /api/v1/me/sessions?date=YYYY-MM-DD&company_id=
         def index
-          company_ids = member_company ? [ member_company.id ] : current_client.companies.ids
+          company_ids = member_company ? [ member_company.id ] : member_companies.map(&:id)
           # The scoping IS the tenancy check here: company_ids comes from the
           # client's own memberships, so a gym they have not joined cannot appear.
           scope = ::Session.where(company_id: company_ids) # rubocop:disable Gymly/UnscopedTenantQuery

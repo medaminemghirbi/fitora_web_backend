@@ -160,6 +160,8 @@ RSpec.describe "Security: tenant isolation", type: :request do
   describe "a member of one gym" do
     let(:member) { create(:client, company: company) }
 
+    before { create(:subscription, :pro, company: company) }
+
     it "cannot pass another gym's company_id to see its schedule" do
       get "/api/v1/me/sessions", params: { company_id: other_company.id }, headers: auth_headers(member)
 

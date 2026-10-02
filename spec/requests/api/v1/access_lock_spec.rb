@@ -85,7 +85,7 @@ RSpec.describe "Access lock", type: :request do
     end
 
     it "downloads one of them" do
-      invoice = company.invoices.first
+      invoice = company.subscription.invoices.first
 
       get "/api/v1/invoices/#{invoice.id}", headers: auth_headers(admin)
 
@@ -93,13 +93,23 @@ RSpec.describe "Access lock", type: :request do
       expect(response.media_type).to eq("application/pdf")
     end
 
-    it "still switches to another company of theirs" do
+    it "still switches to another salle of theirs" do
       other = create(:company, admin: admin)
-      create(:subscription, company: other)
 
       post "/api/v1/companies/#{other.id}/switch", headers: auth_headers(admin)
 
       expect(response).to have_http_status(:ok)
     end
+  end
+
+  # One account, one door: the plan and its access cover every salle.
+  it "locks every salle of the account at once" do
+    other = create(:company, admin: admin)
+    create(:subscription, :closed, company: company)
+    admin.update!(active_company: other)
+
+    get "/api/v1/clients", headers: auth_headers(admin)
+
+    expect(response).to have_http_status(:payment_required)
   end
 end

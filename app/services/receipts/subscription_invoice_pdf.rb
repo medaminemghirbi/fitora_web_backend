@@ -21,6 +21,7 @@ module Receipts
     HAIR = "999999".freeze
 
     LABEL_BY_PERIOD = { "monthly" => "mois", "yearly" => "année" }.freeze
+    PLAN_LABELS = { "starter" => "Starter", "pro" => "Pro" }.freeze
 
     def self.call(invoice:)
       new(invoice: invoice).call
@@ -28,8 +29,9 @@ module Receipts
 
     def initialize(invoice:)
       @invoice = invoice
-      @company = invoice.company
-      @admin = invoice.company.admin
+      # Billed to the account, headed by its first salle.
+      @company = invoice.billing_company
+      @admin = invoice.admin
     end
 
     def call
@@ -76,7 +78,7 @@ module Receipts
       pdf.fill_color GREY
       pdf.text_box "Destinataire:", at: [ 0, top ], width: 90, size: 10
       pdf.fill_color INK
-      dest = [ company.name, admin&.full_name, company.address, company.city, company.email ].compact_blank
+      dest = [ company&.name, admin&.full_name, company&.address, company&.city, company&.email ].compact_blank
       pdf.text_box dest.join("\n"), at: [ 95, top ], width: 240, size: 10, leading: 3
       pdf.fill_color "000000"
 
@@ -128,7 +130,9 @@ module Receipts
     end
 
     def designation
-      "Accès Gymly — #{LABEL_BY_PERIOD.fetch(invoice.billing_period, invoice.billing_period)}"
+      return "Gymly — période d'essai" if invoice.trial?
+
+      "Gymly #{PLAN_LABELS.fetch(invoice.plan, invoice.plan)} — #{LABEL_BY_PERIOD.fetch(invoice.billing_period, invoice.billing_period)}"
     end
 
     # PDF's built-in fonts are WinAnsi: an arrow or an em-dash here raises

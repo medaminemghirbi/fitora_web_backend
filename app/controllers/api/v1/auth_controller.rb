@@ -49,6 +49,15 @@ module Api
 
         client = Client.active.where.not(password_digest: nil).find_by(email: email)
         if client&.authenticate(params[:password])
+          # The member app is a Pro feature. Said only after the password
+          # checked out, so it tells nobody but the member which gyms exist.
+          unless client.companies.includes(admin: { subscription: :invoices }).any?(&:member_app?)
+            return render json: {
+              error: "member_app_not_included",
+              message: "Your gym's plan does not include the member app."
+            }, status: :forbidden
+          end
+
           return render json: { token: JwtService.for_client(client), account_type: "client", client: ClientSerializer.new(client).as_json }
         end
 

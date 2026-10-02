@@ -79,12 +79,19 @@ RSpec.describe StaffMember, type: :model do
       expect(staff).not_to be_valid
     end
 
-    it "only allows one staff record per user" do
+    it "only allows one staff record per user in a salle" do
       user = create(:user, :staff)
-      create(:staff_member, user: user)
-      duplicate = build(:staff_member, user: user)
+      record = create(:staff_member, user: user)
+      duplicate = build(:staff_member, user: user, company: record.company)
 
       expect(duplicate).not_to be_valid
+    end
+
+    it "lets one login hold a record in each salle it is posted to" do
+      user = create(:user, :staff)
+      create(:staff_member, user: user)
+
+      expect(build(:staff_member, user: user)).to be_valid
     end
   end
 end

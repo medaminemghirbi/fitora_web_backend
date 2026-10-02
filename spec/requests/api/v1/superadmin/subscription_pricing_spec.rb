@@ -4,8 +4,8 @@ RSpec.describe "Api::V1::Superadmin::SubscriptionPricing", type: :request do
   let(:superadmin) { create(:user, :superadmin) }
 
   describe "GET /api/v1/superadmin/subscription_pricing" do
-    it "returns all three tiers for the reference (TND) currency + the annual discount by default" do
-      SubscriptionPrice.for("TND", company_limit: 1).update!(monthly_cents: 19_000)
+    it "returns both plans for the reference (TND) currency + the annual discount by default" do
+      SubscriptionPrice.for("TND", plan: "starter").update!(monthly_cents: 19_000)
 
       get "/api/v1/superadmin/subscription_pricing", headers: auth_headers(superadmin)
 
@@ -15,20 +15,30 @@ RSpec.describe "Api::V1::Superadmin::SubscriptionPricing", type: :request do
       expect(body["annual_discount_percent"]).to eq(10)
       expect(body["currencies"]).to include("TND", "EUR")
 
-      tier1 = body["tiers"].find { |t| t["company_limit"] == 1 }
-      expect(tier1["monthly_cents"]).to eq(19_000)
-      expect(tier1["annual_cents"]).to eq((19_000 * 12 * 0.9).round)
-      expect(body["tiers"].map { |t| t["company_limit"] }).to match_array([ 1, 3, SubscriptionPrice::UNLIMITED ])
+      starter = body["plans"].find { |p| p["plan"] == "starter" }
+      expect(starter["monthly_cents"]).to eq(19_000)
+      expect(starter["annual_cents"]).to eq((19_000 * 12 * 0.9).round)
+      expect(body["plans"].map { |p| p["plan"] }).to eq(%w[starter pro])
     end
 
-    it "auto-seeds a requested currency's tiers from the reference" do
-      SubscriptionPrice.for("TND", company_limit: 1).update!(monthly_cents: 17_000)
+    it "counts the accounts on each plan in that currency" do
+      create(:subscription, :pro, company: create(:company, currency: "TND"))
+      create(:subscription, company: create(:company, currency: "EUR"))
+
+      get "/api/v1/superadmin/subscription_pricing", headers: auth_headers(superadmin)
+
+      counts = response.parsed_body["plans"].to_h { |p| [ p["plan"], p["accounts_count"] ] }
+      expect(counts).to eq("starter" => 0, "pro" => 1)
+    end
+
+    it "auto-seeds a requested currency's plans from the reference" do
+      SubscriptionPrice.for("TND", plan: "starter").update!(monthly_cents: 17_000)
 
       get "/api/v1/superadmin/subscription_pricing", params: { currency: "EUR" }, headers: auth_headers(superadmin)
 
       body = response.parsed_body
       expect(body["currency"]).to eq("EUR")
-      expect(body["tiers"].find { |t| t["company_limit"] == 1 }["monthly_cents"]).to eq(17_000)
+      expect(body["plans"].find { |p| p["plan"] == "starter" }["monthly_cents"]).to eq(17_000)
     end
 
     it "is superadmin-only" do
@@ -38,35 +48,39 @@ RSpec.describe "Api::V1::Superadmin::SubscriptionPricing", type: :request do
   end
 
   describe "PATCH /api/v1/superadmin/subscription_pricing" do
-    it "updates one or more of a currency's tiers and the global annual discount" do
+    it "updates a currency's plans and the global annual discount" do
       patch "/api/v1/superadmin/subscription_pricing",
-            params: { currency: "EUR", tiers: { "1" => 4500, "3" => 9000 }, annual_discount_percent: 15 },
+            params: { currency: "EUR", plans: { "starter" => 4500, "pro" => 9000 }, annual_discount_percent: 15 },
             headers: auth_headers(superadmin)
 
       expect(response).to have_http_status(:ok)
-      expect(SubscriptionPrice.for("EUR", company_limit: 1).monthly_cents).to eq(4500)
-      expect(SubscriptionPrice.for("EUR", company_limit: 3).monthly_cents).to eq(9000)
+      expect(SubscriptionPrice.for("EUR", plan: "starter").monthly_cents).to eq(4500)
+      expect(SubscriptionPrice.for("EUR", plan: "pro").monthly_cents).to eq(9000)
       expect(PlatformSetting.current.annual_discount_percent).to eq(15)
 
-      tier1 = response.parsed_body["tiers"].find { |t| t["company_limit"] == 1 }
-      expect(tier1["annual_cents"]).to eq((4500 * 12 * 0.85).round)
+      starter = response.parsed_body["plans"].find { |p| p["plan"] == "starter" }
+      expect(starter["annual_cents"]).to eq((4500 * 12 * 0.85).round)
     end
 
-    it "updates the unlimited tier via the 0 sentinel key" do
-      patch "/api/v1/superadmin/subscription_pricing",
-            params: { currency: "EUR", tiers: { "0" => 80_000 } },
-            headers: auth_headers(superadmin)
+    it "leaves a plan not mentioned in the request untouched" do
+      SubscriptionPrice.for("EUR", plan: "pro").update!(monthly_cents: 9000)
+
+      patch "/api/v1/superadmin/subscription_pricing", params: { currency: "EUR", plans: { "starter" => 4500 } }, headers: auth_headers(superadmin)
+
+      expect(SubscriptionPrice.for("EUR", plan: "pro").monthly_cents).to eq(9000)
+    end
+
+    it "ignores a plan Gymly does not sell" do
+      patch "/api/v1/superadmin/subscription_pricing", params: { currency: "EUR", plans: { "premium" => 1 } }, headers: auth_headers(superadmin)
 
       expect(response).to have_http_status(:ok)
-      expect(SubscriptionPrice.for("EUR", company_limit: SubscriptionPrice::UNLIMITED).monthly_cents).to eq(80_000)
+      expect(SubscriptionPrice.where(plan: "premium")).to be_none
     end
 
-    it "leaves tiers not mentioned in the request untouched" do
-      SubscriptionPrice.for("EUR", company_limit: 3).update!(monthly_cents: 9000)
+    it "rejects a negative price" do
+      patch "/api/v1/superadmin/subscription_pricing", params: { currency: "EUR", plans: { "pro" => -1 } }, headers: auth_headers(superadmin)
 
-      patch "/api/v1/superadmin/subscription_pricing", params: { currency: "EUR", tiers: { "1" => 4500 } }, headers: auth_headers(superadmin)
-
-      expect(SubscriptionPrice.for("EUR", company_limit: 3).monthly_cents).to eq(9000)
+      expect(response).to have_http_status(:unprocessable_content)
     end
 
     it "rejects an out-of-range discount" do

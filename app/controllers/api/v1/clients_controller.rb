@@ -132,6 +132,12 @@ module Api
       # sees or resets it; a member who forgets it uses "forgot password"
       # like anyone else.
       def invite
+        unless current_company.member_app?
+          return render json: {
+            error: "member_app_not_included",
+            message: "The member app comes with Gymly Pro."
+          }, status: :forbidden
+        end
         return render_error("This member has no email address to invite.") if @client.email.blank?
         return render_error("This member already has access to the app.", code: "already_enabled") if @client.login_enabled?
         if @client.invitation_sent_at && @client.invitation_sent_at > INVITE_COOLDOWN.ago

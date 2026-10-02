@@ -53,42 +53,69 @@ RSpec.describe "Api::V1::Companies", type: :request do
       expect(fresh_admin.reload.active_company).to eq(created)
     end
 
-    it "lets an admin already on the unlimited tier create as many companies as they like" do
-      admin.update!(company_limit: nil)
-
-      post "/api/v1/companies", params: { company: { name: "Second Gym", timezone: "Africa/Tunis", currency: "TND" } },
-                                 headers: auth_headers(admin)
-
-      expect(response).to have_http_status(:created)
-      expect(admin.companies.count).to eq(2)
-    end
-
-    it "blocks a second company once the admin's tier limit (1) is reached" do
-      post "/api/v1/companies", params: { company: { name: "Second Gym", timezone: "Africa/Tunis", currency: "TND" } },
-                                 headers: auth_headers(admin)
-
-      expect(response).to have_http_status(:unprocessable_content)
-      expect(response.parsed_body["error"]).to eq("company_limit_reached")
-      expect(admin.companies.count).to eq(1)
-    end
-
-    it "allows a third company on the tier-3 plan, then blocks a fourth" do
-      admin.update!(company_limit: 3)
+    it "lets a Pro account open as many salles as it likes" do
+      create(:subscription, :pro, company: company)
       create(:company, admin: admin)
 
       post "/api/v1/companies", params: { company: { name: "Third Gym", timezone: "Africa/Tunis", currency: "TND" } },
                                  headers: auth_headers(admin)
-      expect(response).to have_http_status(:created)
 
-      post "/api/v1/companies", params: { company: { name: "Fourth Gym", timezone: "Africa/Tunis", currency: "TND" } },
+      expect(response).to have_http_status(:created)
+      expect(admin.companies.count).to eq(3)
+    end
+
+    it "refuses a second salle on Starter, and says it comes with Pro" do
+      create(:subscription, company: company)
+
+      post "/api/v1/companies", params: { company: { name: "Second Gym", timezone: "Africa/Tunis", currency: "TND" } },
                                  headers: auth_headers(admin)
-      expect(response).to have_http_status(:unprocessable_content)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["error"]).to eq("multi_salle_not_included")
+      expect(admin.companies.count).to eq(1)
+      expect(admin.reload.active_company).to eq(company)
+    end
+
+    it "lets the free trial open a second salle: it shows the whole product" do
+      post "/api/v1/companies", params: { company: { name: "First", timezone: "Africa/Tunis", currency: "TND" } },
+                                 headers: auth_headers(fresh_admin)
+      expect(fresh_admin.reload.subscription).to be_trial
+
+      post "/api/v1/companies", params: { company: { name: "Second", timezone: "Africa/Tunis", currency: "TND" } },
+                                 headers: auth_headers(fresh_admin)
+
+      expect(response).to have_http_status(:created)
+      expect(fresh_admin.companies.count).to eq(2)
+    end
+
+    it "leaves a Starter account's existing salles alone: only opening another is refused" do
+      create(:subscription, company: company)
+      second = create(:company, admin: admin)
+
+      post "/api/v1/companies/#{second.id}/switch", headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "does not give a later salle a trial of its own: it joins the account's plan" do
+      post "/api/v1/companies", params: { company: { name: "First", timezone: "Africa/Tunis", currency: "TND" } },
+                                 headers: auth_headers(fresh_admin)
+      subscription = fresh_admin.reload.subscription
+      subscription.update!(plan: :pro)
+
+      post "/api/v1/companies", params: { company: { name: "Second", timezone: "Africa/Tunis", currency: "TND" } },
+                                 headers: auth_headers(fresh_admin)
+
+      expect(response).to have_http_status(:created)
+      second = fresh_admin.companies.find_by(name: "Second")
+      expect(second.subscription).to eq(subscription)
+      expect(subscription.invoices.count).to eq(1)
+      expect(second.subscription).to be_pro
     end
   end
 
   describe "GET /api/v1/companies" do
     it "lists every company this admin runs, flagging which one is active" do
-      admin.update!(company_limit: nil)
       second = create(:company, admin: admin)
 
       get "/api/v1/companies", headers: auth_headers(admin)
@@ -112,7 +139,6 @@ RSpec.describe "Api::V1::Companies", type: :request do
 
   describe "POST /api/v1/companies/:id/switch" do
     it "moves the admin's active company and current_company follows on the next request" do
-      admin.update!(company_limit: nil)
       second = create(:company, admin: admin)
 
       post "/api/v1/companies/#{second.id}/switch", headers: auth_headers(admin)
@@ -131,8 +157,7 @@ RSpec.describe "Api::V1::Companies", type: :request do
       expect(response).to have_http_status(:not_found)
     end
 
-    it "is unaffected by another of the admin's companies being locked out" do
-      admin.update!(company_limit: nil)
+    it "still switches while the account is locked" do
       second = create(:company, admin: admin)
       create(:subscription, :closed, company: company)
 
@@ -140,11 +165,132 @@ RSpec.describe "Api::V1::Companies", type: :request do
 
       expect(response).to have_http_status(:ok)
     end
+
+    it "moves a moderator between the salles they are posted to" do
+      second = create(:company, admin: admin)
+      record = create(:staff_member, company: company, role: :moderator)
+      create(:staff_member, company: second, user: record.user, role: :moderator)
+
+      get "/api/v1/companies", headers: auth_headers(record.user)
+      expect(response.parsed_body["companies"].map { |c| c["id"] }).to contain_exactly(company.id, second.id)
+
+      post "/api/v1/companies/#{second.id}/switch", headers: auth_headers(record.user)
+      expect(response).to have_http_status(:ok)
+
+      get "/api/v1/bootstrap", headers: auth_headers(record.user)
+      expect(response.parsed_body["user"]["company_id"]).to eq(second.id)
+    end
+
+    it "404s a moderator switching to a salle of the admin's they are not posted to" do
+      second = create(:company, admin: admin)
+      record = create(:staff_member, company: company, role: :moderator)
+
+      post "/api/v1/companies/#{second.id}/switch", headers: auth_headers(record.user)
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /api/v1/companies/network" do
+    it "lists every salle with its moderators, and every moderator with their salles" do
+      second = create(:company, admin: admin, city: "Sousse")
+      record = create(:staff_member, company: company, role: :moderator)
+      create(:staff_member, company: second, user: record.user, role: :moderator)
+      create(:staff_member, company: second, role: :coach)
+
+      get "/api/v1/companies/network", headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body["companies"].map { |c| c["id"] }).to eq([ company.id, second.id ])
+      expect(body["companies"].last["city"]).to eq("Sousse")
+      expect(body["companies"].last["moderator_ids"]).to eq([ record.user_id ])
+      expect(body["moderators"].map { |m| m["id"] }).to eq([ record.user_id ])
+      expect(body["moderators"].first["company_ids"]).to contain_exactly(company.id, second.id)
+    end
+
+    it "is the admin's alone" do
+      record = create(:staff_member, company: company, role: :moderator)
+
+      get "/api/v1/companies/network", headers: auth_headers(record.user)
+
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe "PUT /api/v1/companies/:id/moderators" do
+    let!(:second) { create(:company, admin: admin) }
+    let!(:record) { create(:staff_member, company: company, role: :moderator) }
+
+    it "posts a moderator to another salle, on that salle's own moderator role" do
+      put "/api/v1/companies/#{second.id}/moderators", params: { user_ids: [ record.user_id ] }, headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:ok)
+      post = second.staff_members.find_by(user: record.user)
+      expect(post.assigned_role).to eq(second.roles.find_by(key: "moderator"))
+      expect(response.parsed_body["companies"].last["moderator_ids"]).to eq([ record.user_id ])
+      expect(AuditLog.where(action: "staff.posted", company: second)).to exist
+    end
+
+    it "withdraws a moderator from a salle while keeping their others" do
+      create(:staff_member, company: second, user: record.user, role: :moderator)
+
+      put "/api/v1/companies/#{second.id}/moderators", params: { user_ids: [] }, headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:ok)
+      expect(second.staff_members.where(user: record.user)).to be_none
+      expect(company.staff_members.where(user: record.user)).to exist
+    end
+
+    it "puts a withdrawn moderator back on a salle they still work at" do
+      create(:staff_member, company: second, user: record.user, role: :moderator)
+      record.user.update!(active_company: second)
+      theirs = create(:client, company: company, first_name: "Stays")
+      create(:client, company: second, first_name: "Gone")
+
+      put "/api/v1/companies/#{second.id}/moderators", params: { user_ids: [] }, headers: auth_headers(admin)
+      get "/api/v1/clients", headers: auth_headers(record.user)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["clients"].map { |c| c["id"] }).to eq([ theirs.id ])
+    end
+
+    it "refuses to take a moderator off the only salle they work at" do
+      put "/api/v1/companies/#{company.id}/moderators", params: { user_ids: [] }, headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(company.staff_members.where(user: record.user)).to exist
+    end
+
+    it "never posts a coach, or someone from another admin's gym" do
+      coach = create(:staff_member, company: company, role: :coach)
+      stranger = create(:staff_member, role: :moderator)
+
+      [ coach.user_id, stranger.user_id ].each do |id|
+        put "/api/v1/companies/#{second.id}/moderators", params: { user_ids: [ id ] }, headers: auth_headers(admin)
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+      expect(second.staff_members.where(coach_id: nil)).to be_none
+    end
+
+    it "404s a salle the admin does not run" do
+      other = create(:company)
+
+      put "/api/v1/companies/#{other.id}/moderators", params: { user_ids: [ record.user_id ] }, headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "is the admin's alone" do
+      put "/api/v1/companies/#{second.id}/moderators", params: { user_ids: [ record.user_id ] }, headers: auth_headers(record.user)
+
+      expect(response).to have_http_status(:forbidden)
+    end
   end
 
   describe "GET /api/v1/company — subscription info" do
     it "lists every feature as included and the monthly / annual price in the company's currency" do
-      SubscriptionPrice.for("TND", company_limit: 1).update!(monthly_cents: 20_000)
+      SubscriptionPrice.for("TND", plan: "starter").update!(monthly_cents: 20_000)
       get "/api/v1/company", headers: auth_headers(admin)
       body = response.parsed_body["company"]
 
@@ -156,13 +302,22 @@ RSpec.describe "Api::V1::Companies", type: :request do
     end
 
     it "prices in the company's own currency, auto-seeded from the TND reference" do
-      SubscriptionPrice.for("TND", company_limit: 1).update!(monthly_cents: 18_000)
+      SubscriptionPrice.for("TND", plan: "starter").update!(monthly_cents: 18_000)
       company.update!(currency: "EUR")
 
       get "/api/v1/company", headers: auth_headers(admin)
 
       expect(response.parsed_body["company"]["monthly_subscription_cents"]).to eq(18_000)
-      expect(SubscriptionPrice.for("EUR", company_limit: 1).monthly_cents).to eq(18_000)
+      expect(SubscriptionPrice.for("EUR", plan: "starter").monthly_cents).to eq(18_000)
+    end
+
+    it "prices the account's own plan" do
+      SubscriptionPrice.for("TND", plan: "pro").update!(monthly_cents: 30_000)
+      create(:subscription, :pro, company: company)
+
+      get "/api/v1/company", headers: auth_headers(admin)
+
+      expect(response.parsed_body["company"]["monthly_subscription_cents"]).to eq(30_000)
     end
   end
 

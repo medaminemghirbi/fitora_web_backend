@@ -66,7 +66,7 @@ namespace :migration do
   task spot_check: :environment do
     failures = []
 
-    Company.includes(:admin, :subscription).find_each do |company|
+    Company.includes(admin: :subscription).find_each do |company|
       label = "#{company.name} (#{company.id})"
       reads = {
         # Admin shell: the dashboard is the widest read in the product —

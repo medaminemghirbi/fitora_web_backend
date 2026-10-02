@@ -49,32 +49,9 @@ RSpec.describe User do
     end
   end
 
-  it "rejects a company_limit outside the two capped tiers (1 or 3; nil is the unlimited tier)" do
-    expect(build(:user, :admin, company_limit: 2)).not_to be_valid
-    expect(build(:user, :admin, company_limit: 1)).to be_valid
-    expect(build(:user, :admin, company_limit: 3)).to be_valid
-    expect(build(:user, :admin, company_limit: nil)).to be_valid
-  end
-
-  describe "#company_limit_reached?" do
-    it "is true once companies.count reaches a capped limit" do
-      admin = create(:user, :admin, company_limit: 1)
-      create(:company, admin: admin)
-
-      expect(admin.company_limit_reached?).to be true
-    end
-
-    it "is never true on the unlimited (nil) tier" do
-      admin = create(:user, :admin, company_limit: nil)
-      create_list(:company, 5, admin: admin)
-
-      expect(admin.company_limit_reached?).to be false
-    end
-  end
-
   describe "#switch_active_company!" do
     it "moves active_company to another of the admin's own companies" do
-      admin = create(:user, :admin, company_limit: nil)
+      admin = create(:user, :admin)
       first = create(:company, admin: admin)
       second = create(:company, admin: admin)
 
@@ -90,6 +67,61 @@ RSpec.describe User do
       expect(admin.switch_active_company!(other_company)).to be false
       expect(admin.reload.active_company).not_to eq(other_company)
     end
+
+    it "moves a staff login between the salles it is posted to, and nowhere else" do
+      admin = create(:user, :admin)
+      first = create(:company, admin: admin)
+      second = create(:company, admin: admin)
+      stranger = create(:company)
+      record = create(:staff_member, company: first, role: :moderator)
+      user = record.user
+      create(:staff_member, company: second, user: user, role: :moderator)
+
+      expect(user.switch_active_company!(second)).to be true
+      expect(user.reload.current_company).to eq(second)
+      expect(user.switch_active_company!(stranger)).to be false
+      expect(user.reload.current_company).to eq(second)
+    end
+  end
+
+  describe "#current_company" do
+    it "is the admin's active salle" do
+      company = create(:company)
+      expect(company.admin.reload.current_company).to eq(company)
+    end
+
+    it "is a staff login's salle, never one it has been withdrawn from" do
+      admin = create(:user, :admin)
+      first = create(:company, admin: admin)
+      second = create(:company, admin: admin)
+      record = create(:staff_member, company: first, role: :moderator)
+      user = record.user
+      other = create(:staff_member, company: second, user: user, role: :moderator)
+      user.update!(active_company: second)
+      expect(user.reload.current_company).to eq(second)
+
+      other.destroy!
+      expect(user.reload.current_company).to eq(first)
+    end
+  end
+
+  describe "#workplaces" do
+    it "is every salle an admin runs" do
+      admin = create(:user, :admin)
+      companies = create_list(:company, 2, admin: admin)
+
+      expect(admin.workplaces).to match_array(companies)
+    end
+
+    it "is every salle a staff login is posted to and still active in" do
+      admin = create(:user, :admin)
+      first = create(:company, admin: admin)
+      second = create(:company, admin: admin)
+      record = create(:staff_member, company: first, role: :moderator)
+      create(:staff_member, company: second, user: record.user, role: :moderator, active: false)
+
+      expect(record.user.workplaces).to contain_exactly(first)
+    end
   end
 
   describe "#destroy" do
@@ -103,7 +135,7 @@ RSpec.describe User do
     end
 
     it "destroys every company it owns, even when several exist" do
-      admin = create(:user, :admin, company_limit: nil)
+      admin = create(:user, :admin)
       companies = create_list(:company, 3, admin: admin)
 
       admin.destroy

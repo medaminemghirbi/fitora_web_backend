@@ -97,61 +97,55 @@ RSpec.describe "Api::V1::Superadmin::Companies", type: :request do
     end
   end
 
-  describe "PATCH /api/v1/superadmin/companies/:id/company_limit" do
-    it "raises the admin's tier, affecting every company they run" do
+  describe "the account's plan" do
+    it "moves the account to Pro, for every salle the admin runs" do
       company = create(:company)
       other_company = create(:company, admin: company.admin)
+      create(:subscription, company: company)
 
-      patch "/api/v1/superadmin/companies/#{company.id}/company_limit",
-            params: { company_limit: 3 },
-            headers: auth_headers(superadmin)
-
-      expect(response).to have_http_status(:ok)
-      expect(company.admin.reload.company_limit).to eq(3)
-      expect(response.parsed_body["company"]["admin"]["company_limit"]).to eq(3)
-      expect(response.parsed_body["company"]["admin"]["companies_count"]).to eq(2) # company + other_company, same admin
-      expect(other_company.reload.admin.company_limit).to eq(3)
-    end
-
-    it "sets the unlimited tier with a blank value" do
-      company = create(:company)
-
-      patch "/api/v1/superadmin/companies/#{company.id}/company_limit",
-            params: { company_limit: "" },
-            headers: auth_headers(superadmin)
+      patch "/api/v1/superadmin/companies/#{company.id}/subscription",
+            params: { plan: "pro" }, headers: auth_headers(superadmin)
 
       expect(response).to have_http_status(:ok)
-      expect(company.admin.reload.company_limit).to be_nil
+      body = response.parsed_body["company"]
+      expect(body["plan"]).to eq("pro")
+      expect(body["subscription"]["member_app"]).to be(true)
+      expect(body["account_companies"].map { |c| c["id"] }).to eq([ company.id, other_company.id ])
+      expect(other_company.reload.subscription).to be_pro
+      expect(other_company).to be_member_app
     end
 
-    it "rejects a tier that isn't 1, 3, or unlimited" do
+    it "logs the change of plan as that" do
       company = create(:company)
+      create(:subscription, company: company)
 
-      patch "/api/v1/superadmin/companies/#{company.id}/company_limit",
-            params: { company_limit: 2 },
-            headers: auth_headers(superadmin)
-
-      expect(response).to have_http_status(:unprocessable_content)
-    end
-
-    it "logs an audit entry" do
-      company = create(:company)
-
-      patch "/api/v1/superadmin/companies/#{company.id}/company_limit", params: { company_limit: 3 }, headers: auth_headers(superadmin)
+      patch "/api/v1/superadmin/companies/#{company.id}/subscription",
+            params: { plan: "pro" }, headers: auth_headers(superadmin)
 
       log = AuditLog.last
-      expect(log.action).to eq("admin.company_limit_changed")
-      expect(log.metadata["to"]).to eq(3)
+      expect(log.action).to eq("subscription.plan_changed")
+      expect(log.metadata).to include("plan_from" => "starter", "plan" => "pro")
     end
 
-    it "is superadmin-only" do
+    it "refuses a plan Gymly does not sell" do
       company = create(:company)
+      create(:subscription, company: company)
 
-      patch "/api/v1/superadmin/companies/#{company.id}/company_limit",
-            params: { company_limit: 3 },
-            headers: auth_headers(create(:user, :admin))
+      patch "/api/v1/superadmin/companies/#{company.id}/subscription",
+            params: { plan: "premium" }, headers: auth_headers(superadmin)
 
-      expect(response).to have_http_status(:forbidden)
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(company.subscription.reload).to be_starter
+    end
+
+    it "prices and labels the next invoice at the plan" do
+      company = create(:company)
+      create(:subscription, :pro, company: company)
+      SubscriptionPrice.for("TND", plan: "pro").update!(monthly_cents: 30_000)
+
+      post "/api/v1/superadmin/companies/#{company.id}/invoices", headers: auth_headers(superadmin)
+
+      expect(response.parsed_body["invoice"]).to include("plan" => "pro", "amount" => 300.0)
     end
   end
 
@@ -341,7 +335,7 @@ RSpec.describe "Api::V1::Superadmin::Companies", type: :request do
       }.to change(Invoice, :count).by(1)
 
       expect(response).to have_http_status(:created)
-      issued = company.invoices.newest_first.first
+      issued = company.subscription.invoices.newest_first.first
       expect(issued.period_start).to eq(Date.new(2026, 8, 1))
       expect(issued.period_end).to eq(Date.new(2026, 8, 31))
       expect(subscription.reload).to be_active

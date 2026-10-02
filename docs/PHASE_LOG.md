@@ -691,3 +691,90 @@ to carry, so the history is squashed into one migration that only creates —
 on an empty database: the schema it dumps is identical, and it rolls back to
 nothing. It keeps the last version the old history reached, so a database
 built from that history counts it as run.
+
+## Two plans, one account, several salles (2026-09-25)
+
+Gymly no longer sells salle-count tiers (Solo 1 / Club 3 / Réseau unlimited).
+It sells two plans, per **admin account**, monthly or yearly:
+
+- **Starter** — the whole product, without the member app.
+- **Pro** — the member app too, and every system update (a selling point
+  on the comparison, not a gate in code).
+
+Decided with the product owner: the plan is the account's (one price
+however many salles), and "affecter un ou plusieurs mod à chaque salle"
+means **moderators**, not modules.
+
+### What moved
+
+`SellTwoPlansToTheAccount` (reversible; rehearsed down and up on the dev
+database, schema identical after):
+
+- `subscriptions.company_id` → `subscriptions.admin_id` (unique) + `plan`.
+  An account keeps its oldest salle's subscription; every salle's invoices
+  move onto it. Existing accounts go on **Pro** — nobody loses the member app.
+- `invoices.company_id` → `invoices.subscription_id`, plus `invoices.plan`
+  frozen at issue like the amount. The PDF is billed to the account's first
+  salle (`Subscription#billing_company`), which also sets its currency and
+  time zone.
+- `subscription_prices.company_limit` → `plan` (unique with currency).
+  Annual price is still twelve months less `PlatformSetting`'s discount.
+- `users.company_limit` dropped: an admin opens as many salles as they like.
+  A later salle joins the account — no second trial.
+- `staff_members.user_id` is unique per company, not globally.
+
+`Company#subscription` now reads `admin.subscription`, so the lock, the
+bootstrap and every caller kept working; locking the account locks every
+salle.
+
+### The member app is Pro
+
+`Subscription#member_app?` = Pro or still on the free trial. Enforced on
+the backend: a member none of whose gyms offers it cannot sign in
+(`403 member_app_not_included`), `/me/*` only sees gyms that offer it
+(`BaseController#member_companies`), and `POST /clients/:id/invite` is
+refused on Starter. The admin UI greys the invitation out with a Pro hint.
+
+### Several salles
+
+- `User#current_company` is the one answer to "which salle is this login in":
+  an admin's switched-to salle, a staff login's current staff record. It is
+  never a salle a moderator was withdrawn from, which `active_company`
+  alone could still name.
+- `GET /companies/network` + `PUT /companies/:id/moderators` —
+  `Companies::PostModerators` creates or deletes a salle's staff record,
+  on that salle's role with the same key. Coaches are never posted (they
+  teach one salle's timetable); a moderator's last salle cannot be taken.
+- Staff logins list and switch between their salles (`User#workplaces`).
+- Frontend: `/admin/salles` ("Mes salles"), the navbar switcher always
+  shown to an admin and to a moderator posted to several, a switcher in the
+  desk shell.
+
+### Superadmin
+
+Plan select (Starter/Pro) on the company page, which says it moves the whole
+account and lists the account's salles; plan chip on the companies list and
+the header; Starter/Pro prices per currency with a live annual preview and
+accounts per plan; accounts per plan on the overview. `PATCH
+/superadmin/companies/:id/company_limit` is gone.
+
+Backend **1,310 examples, 0 failures**, rubocop clean, OpenAPI regenerated;
+frontend **1,447 passing**, lint/i18n/css clean; Playwright smoke 4/4.
+
+### Several salles are Pro (2026-09-26)
+
+Revised with the product owner: **Starter runs one salle**; Pro adds several
+salles, the member app and every update.
+
+- `Subscription#multi_salle?` = Pro or still on the free trial (the trial
+  shows the whole product, as with the member app). Sent as `multi_salle`
+  in `/subscription` and `/bootstrap`.
+- `Companies::Open` refuses a salle beyond the first unless the account is
+  `multi_salle?`; `POST /companies` answers `403 multi_salle_not_included`.
+  The first salle always opens (it opens the account).
+- A Starter account that already runs several salles keeps them and still
+  switches between them: only opening another is refused.
+- Frontend: "Mes salles" swaps "Nouvelle salle" for a locked "Plusieurs
+  salles avec Pro" leading to `/admin/subscription`; the subscription page
+  lists several salles with the member app and the updates under
+  "Uniquement avec Pro", and warns that Starter stops new salles.

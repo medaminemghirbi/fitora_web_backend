@@ -39,15 +39,18 @@ module Api
           # Locked is the remainder rather than a count of its own, so the
           # two always add up to the total. A company with no subscription
           # row at all counts as locked — the same way the company list
-          # reports it (SuperadminCompanySerializer#access_open).
-          open = Subscription.where(active: true).count
+          # reports it (SuperadminCompanySerializer#access_open). Access is
+          # the account's, so a salle is open when its admin's account is.
+          open = Company.joins(admin: :subscription).where(subscriptions: { active: true }).count
 
           {
             total: total,
             open: open,
             locked: total - open,
             new_this_month: Company.where(created_at: current_month).count,
-            new_last_month: Company.where(created_at: last_month).count
+            new_last_month: Company.where(created_at: last_month).count,
+            # Accounts per plan — what Gymly actually sells.
+            plans: SubscriptionPrice::PLANS.index_with { |plan| Subscription.where(plan: plan).count }
           }
         end
 
@@ -77,7 +80,7 @@ module Api
         # invoiced.
         def money_json
           invoiced = Invoice.where(issued_at: current_month).sum(:amount_cents)
-          arrears = Subscription.includes(company: :admin).sum { |s| s.arrears_cents }
+          arrears = Subscription.includes(:invoices, admin: :companies).sum { |s| s.arrears_cents }
 
           {
             invoiced_this_month_cents: invoiced,
@@ -87,7 +90,7 @@ module Api
         end
 
         def recent_companies_json
-          Company.includes(:admin, :subscription).order(created_at: :desc).limit(5).map do |company|
+          Company.includes(admin: :subscription).order(created_at: :desc).limit(5).map do |company|
             {
               id: company.id,
               name: company.name,

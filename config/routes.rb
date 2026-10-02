@@ -44,11 +44,15 @@ Rails.application.routes.draw do
       end
 
       resource :company, only: [ :show, :update ]
-      # Plural: an admin can run more than one company now (see
-      # User#company_limit) — :show/:update above always act on whichever
-      # one is currently active; these list/create/switch between them.
+      # Plural: an admin runs as many salles as they like — :show/:update
+      # above always act on whichever one is currently active; these
+      # list/create/switch between them, and post moderators to them.
       resources :companies, only: [ :index, :create ] do
-        member { post :switch }
+        member do
+          post :switch
+          put :moderators, to: "companies#update_moderators"
+        end
+        collection { get :network }
       end
       get "branding", to: "branding#show"
 
@@ -157,7 +161,6 @@ Rails.application.routes.draw do
           member do
             patch :subscription, to: "companies#update_subscription"
             patch :settings, to: "companies#update_settings"
-            patch :company_limit, to: "companies#update_company_limit"
             post :impersonate, to: "companies#impersonate"
             get :invoices, to: "companies#invoices"
             post :invoices, to: "companies#create_invoice"

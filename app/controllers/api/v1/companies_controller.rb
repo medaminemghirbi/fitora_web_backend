@@ -1,8 +1,11 @@
 module Api
   module V1
     class CompaniesController < BaseController
-      before_action :require_admin!
-      before_action :set_owned_company, only: [ :switch ]
+      # A staff login posted to several salles lists and switches between
+      # them too; everything else here is the admin's.
+      before_action :require_admin!, except: [ :index, :switch ]
+      before_action :set_workplace, only: [ :switch ]
+      before_action :set_owned_company, only: [ :update_moderators ]
 
       # GET /api/v1/company — the admin's currently ACTIVE company (see
       # #switch). Everything else in the API (current_company) follows
@@ -11,30 +14,35 @@ module Api
         render json: { company: CompanySerializer.new(current_company).as_json }
       end
 
-      # GET /api/v1/companies — every company this admin runs, for the
-      # navbar switcher. Order is oldest-first (predictable, matches
-      # signup order) rather than alphabetical, which would reorder itself
-      # as they rename one.
+      # GET /api/v1/companies — every salle this login can switch between
+      # (User#workplaces), for the navbar switcher. Order is oldest-first
+      # (predictable, matches signup order) rather than alphabetical, which
+      # would reorder itself as they rename one.
       def index
-        companies = current_user.companies.order(:created_at)
+        companies = current_user.workplaces.order(:created_at)
         render json: {
-          companies: companies.map { |c| CompanySummarySerializer.new(c, active: c.id == current_user.active_company_id).as_json }
+          companies: companies.map { |c| CompanySummarySerializer.new(c, active: c.id == current_company&.id).as_json }
         }
       end
 
-      # POST /api/v1/companies — a second (or third…) company under the
-      # same admin login. Capped by company_limit (see User#company_limit);
-      # nil means unlimited. Becomes the active company immediately.
-      def create
-        if current_user.company_limit_reached?
-          return render json: {
-            error: "company_limit_reached",
-            message: "Your plan allows #{current_user.company_limit} " \
-                     "#{current_user.company_limit == 1 ? 'company' : 'companies'}. Contact Gymly to upgrade."
-          }, status: :unprocessable_content
-        end
+      # GET /api/v1/companies/network — the admin's "Mes salles" page: every
+      # salle with what it holds, and every moderator with where they work.
+      def network
+        render json: network_json
+      end
 
+      # POST /api/v1/companies — the admin's first salle, or another under
+      # the same login: on Pro (or the trial) as many as they like, at one
+      # price however many salles it covers; Starter runs one. Becomes the
+      # active company immediately.
+      def create
         result = Companies::Open.call(admin: current_user, attributes: company_params)
+        if result.error == Companies::Open::MULTI_SALLE_NOT_INCLUDED
+          return render json: {
+            error: "multi_salle_not_included",
+            message: "Several salles come with Gymly Pro."
+          }, status: :forbidden
+        end
         return render_errors(result.company.errors.any? ? result.company : result.error) unless result.success?
 
         render json: { company: CompanySerializer.new(result.company).as_json }, status: :created
@@ -55,18 +63,61 @@ module Api
         end
       end
 
-      # POST /api/v1/companies/:id/switch — moves the admin's active
-      # session to another of their OWN companies (set_owned_company 404s
-      # on anything else, same as every other tenant-scoped lookup).
+      # POST /api/v1/companies/:id/switch — moves the session to another of
+      # this login's OWN salles: one the admin runs, or one the staff login
+      # is posted to (set_workplace 404s on anything else, same as every
+      # other tenant-scoped lookup).
       def switch
         current_user.switch_active_company!(@company)
-        render json: { company: CompanySerializer.new(@company).as_json }
+        render json: { company: current_user.admin? ? CompanySerializer.new(@company).as_json : CompanySummarySerializer.new(@company, active: true).as_json }
+      end
+
+      # PUT /api/v1/companies/:id/moderators — { user_ids: [] }: exactly who
+      # works at this salle among the admin's moderators. See
+      # Companies::PostModerators.
+      def update_moderators
+        result = Companies::PostModerators.call(company: @company, user_ids: params[:user_ids], by: current_user)
+        return render_errors(result.error) unless result.success?
+
+        render json: network_json
       end
 
       private
 
+      def set_workplace
+        @company = current_user.workplaces.find(params[:id])
+      end
+
       def set_owned_company
         @company = current_user.companies.find(params[:id])
+      end
+
+      def network_json
+        companies = current_user.companies.order(:created_at).to_a
+        posts = current_user.salle_staff_members.where(coach_id: nil).includes(:user, :assigned_role).to_a
+        members = current_user.salle_memberships.where(active: true).group(:company_id).count
+
+        {
+          companies: companies.map do |company|
+            CompanySummarySerializer.new(company, active: company.id == current_company&.id).as_json.merge(
+              city: company.city,
+              members_count: members.fetch(company.id, 0),
+              moderator_ids: posts.select { |p| p.company_id == company.id }.map(&:user_id)
+            )
+          end,
+          moderators: posts.group_by(&:user_id).map do |_, records|
+            first = records.min_by(&:created_at)
+            user = first.user
+            {
+              id: user.id,
+              full_name: user.full_name,
+              email: user.email,
+              role_name: first.assigned_role.name,
+              active: records.any?(&:active?),
+              company_ids: records.map(&:company_id)
+            }
+          end.sort_by { |m| m[:full_name].downcase }
+        }
       end
 
       def company_params

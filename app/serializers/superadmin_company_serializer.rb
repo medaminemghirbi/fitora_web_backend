@@ -20,12 +20,15 @@ class SuperadminCompanySerializer
         full_name: company.admin.full_name,
         email: company.admin.email,
         phone: company.admin.phone,
-        # The tier governs the ADMIN, not this one company — every company
-        # under them shares it. nil = unlimited.
-        company_limit: company.admin.company_limit,
-        companies_count: company.admin.companies.count
+        companies_count: company.admin.companies.size
       },
+      # The plan is the ACCOUNT's, not this one salle's: every salle under
+      # the admin shares it, its access and its invoices.
+      plan: company.subscription&.plan,
       subscription: SubscriptionSerializer.new(company.subscription).as_json,
+      # Every salle the account covers, this one included — the superadmin
+      # sells to the admin, and needs to see what one sale opens.
+      account_companies: account_companies,
       # Owed: periods with no invoice behind them, times the tariff. No
       # longer typed in by hand, so it cannot contradict the history.
       arrears_cents: company.subscription&.arrears_cents || 0,
@@ -58,6 +61,12 @@ class SuperadminCompanySerializer
 
     period = subscription.next_period
     { period_start: period.first, period_end: period.last, amount_cents: subscription.period_cents }
+  end
+
+  def account_companies
+    company.admin.companies.sort_by(&:created_at).map do |c|
+      { id: c.id, name: c.name, city: c.city, current: c.id == company.id }
+    end
   end
 
   def usage

@@ -24,7 +24,7 @@ class BookingPolicy < ApplicationPolicy
   # Admin always; staff need the `bookings` capability (manager, moderator,
   # or a coach — narrowed to bookings on their own sessions only).
   def staff_access?
-    return false if record.session.company_id != (user.active_company_id || user.staff_member&.company_id)
+    return false if record.session.company_id != user.current_company&.id
 
     return true if user.admin?
 

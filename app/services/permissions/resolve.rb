@@ -44,7 +44,7 @@ module Permissions
     attr_reader :user
 
     def resolve_company
-      user.active_company || user.staff_member&.company
+      user.current_company
     end
 
     def role_hash(role)

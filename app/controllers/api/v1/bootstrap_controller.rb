@@ -58,7 +58,13 @@ module Api
           days_before_lock: subscription.days_before_lock,
           # The shell counts the free days down instead of the unpaid ones.
           trial: subscription.trial?,
-          trial_days_left: subscription.trial_days_left
+          trial_days_left: subscription.trial_days_left,
+          # The account's plan, and what it opens: screens offering the
+          # member app, or another salle, say "Pro" instead of a button
+          # that would be refused.
+          plan: subscription.plan,
+          member_app: subscription.member_app?,
+          multi_salle: subscription.multi_salle?
         }
       end
     end

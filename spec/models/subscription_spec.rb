@@ -129,6 +129,23 @@ RSpec.describe Subscription do
     end
   end
 
+  describe "#multi_salle? — opening another salle" do
+    it "is Pro's" do
+      expect(create(:subscription, :pro, company: company)).to be_multi_salle
+    end
+
+    it "is not Starter's" do
+      expect(paid_until(Date.current.end_of_month)).not_to be_multi_salle
+    end
+
+    it "is open on the free trial, like the member app" do
+      subscription = create(:subscription, company: company)
+      create(:invoice, :trial, company: company, period_start: Date.current, period_end: Date.current + 13)
+
+      expect(subscription.reload).to be_multi_salle
+    end
+  end
+
   describe "#lock_reason — two words, never four" do
     it "is nil while access is open" do
       expect(paid_until(Date.current.end_of_month).lock_reason).to be_nil

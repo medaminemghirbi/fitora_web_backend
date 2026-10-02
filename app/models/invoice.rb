@@ -2,22 +2,28 @@
 #
 # Payment happens off-app, so an invoice is not a demand — it is the proof
 # that money arrived. A Gymly superadmin confirms it, the invoice is issued, and
-# it lands in the gym's own account to download.
+# it lands in the admin's account to download. It covers the account — every
+# salle the admin runs — not one gym.
 #
 # Everything about the subscription that used to be stored is read from
 # these: "paid until" is the latest period_end, arrears are the periods
 # without a row.
 class Invoice < ApplicationRecord
-  belongs_to :company
+  belongs_to :subscription
   belongs_to :issued_by, class_name: "User", optional: true
 
   enum :billing_period, Subscription::BILLING_PERIODS, prefix: :covers
+  # The plan this period was bought on, frozen at issue like the amount.
+  attribute :plan, :string
+  enum :plan, Subscription::PLANS, prefix: :on, validate: true
 
   validates :number, presence: true, uniqueness: true
   validates :period_start, :period_end, :issued_at, presence: true
   validates :amount_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :currency, presence: true
   validate :period_runs_forwards
+
+  delegate :admin, :billing_company, to: :subscription
 
   scope :chronological, -> { order(:period_start) }
   scope :newest_first, -> { order(period_start: :desc) }

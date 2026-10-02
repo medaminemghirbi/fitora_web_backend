@@ -50,7 +50,7 @@ namespace :load_test do
       admin.update!(active_company: company)
 
       Role.seed_defaults_for(company)
-      company.create_subscription!(active: true, billing_period: :monthly)
+      company.admin.subscription || company.admin.create_subscription!(active: true, billing_period: :monthly, plan: :pro)
       location = company.locations.create!(name: company.name, timezone: company.timezone)
 
       activities = 6.times.map do |a|

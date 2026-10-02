@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Member invitations", type: :request do
-  let(:company) { create(:company) }
+  let(:company) { create(:company, :pro) }
   let(:member) { create(:client, company: company, email: "member@example.com") }
 
   describe "POST /api/v1/clients/:id/invite" do
@@ -34,6 +34,17 @@ RSpec.describe "Member invitations", type: :request do
       post "/api/v1/clients/#{member.id}/invite", headers: auth_headers(company.admin)
 
       expect(response.parsed_body["error"]).to eq("invitation_recently_sent")
+    end
+
+    it "is refused on Starter: the member app comes with Pro" do
+      company.subscription.update!(plan: :starter)
+
+      expect {
+        post "/api/v1/clients/#{member.id}/invite", headers: auth_headers(company.admin)
+      }.not_to have_enqueued_mail(AccountMailer, :member_invitation)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["error"]).to eq("member_app_not_included")
     end
 
     it "is refused for another gym's member" do

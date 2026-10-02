@@ -10,7 +10,7 @@ require "rails_helper"
 # regression test for a NoMethodError on nil.
 RSpec.describe "An all-access contract", type: :request do
   let(:admin) { create(:user, :admin) }
-  let!(:company) { create(:company, admin: admin) }
+  let!(:company) { create(:company, :pro, admin: admin) }
   let(:pilates) { create(:activity, company: company, name: "Pilates") }
   let(:boxing) { create(:activity, company: company, name: "Boxe") }
   let(:plan) { create(:contract_type, company: company, name: "Tout accès", activity: pilates) }

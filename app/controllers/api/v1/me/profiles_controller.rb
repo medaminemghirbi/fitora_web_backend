@@ -11,11 +11,12 @@ module Api
       # quotes back at them.
       class ProfilesController < BaseController
         before_action :require_client!
+        before_action :require_member_app!, only: [ :show ]
         before_action :require_member_company!
 
         # GET /api/v1/me/profile?company_id=
         def show
-          company = member_company || current_client.companies.first
+          company = member_company || member_companies.first
 
           render json: {
             client: {
@@ -26,7 +27,7 @@ module Api
               email: current_client.email,
               phone: current_client.phone
             },
-            gyms: current_client.companies.map { |c| { id: c.id, name: c.name } },
+            gyms: member_companies.map { |c| { id: c.id, name: c.name } },
             subscription: subscription_json(company),
             attendance: attendance_json(company)
           }

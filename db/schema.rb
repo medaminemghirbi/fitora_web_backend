@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_24_090700) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -279,7 +279,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_24_090700) do
   create_table "invoices", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.integer "amount_cents", null: false
     t.integer "billing_period", default: 0, null: false
-    t.uuid "company_id", null: false
     t.datetime "created_at", null: false
     t.string "currency", null: false
     t.datetime "issued_at", null: false
@@ -288,12 +287,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_24_090700) do
     t.string "number", null: false
     t.date "period_end", null: false
     t.date "period_start", null: false
+    t.string "plan", default: "starter", null: false
+    t.uuid "subscription_id", null: false
     t.boolean "trial", default: false, null: false
     t.datetime "updated_at", null: false
-    t.index ["company_id", "period_start"], name: "index_invoices_on_company_id_and_period_start"
-    t.index ["company_id"], name: "index_invoices_on_company_id"
     t.index ["issued_by_id"], name: "index_invoices_on_issued_by_id"
     t.index ["number"], name: "index_invoices_on_number", unique: true
+    t.index ["subscription_id", "period_start"], name: "index_invoices_on_subscription_id_and_period_start"
+    t.index ["subscription_id"], name: "index_invoices_on_subscription_id"
   end
 
   create_table "memberships", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -444,25 +445,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_24_090700) do
     t.index ["coach_id"], name: "index_staff_members_on_coach_id"
     t.index ["company_id"], name: "index_staff_members_on_company_id"
     t.index ["role_id"], name: "index_staff_members_on_role_id"
-    t.index ["user_id"], name: "index_staff_members_on_user_id", unique: true
+    t.index ["user_id", "company_id"], name: "index_staff_members_on_user_id_and_company_id", unique: true
+    t.index ["user_id"], name: "index_staff_members_on_user_id"
   end
 
   create_table "subscription_prices", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.integer "company_limit", default: 1, null: false
     t.datetime "created_at", null: false
     t.string "currency", null: false
     t.integer "monthly_cents", default: 0, null: false
+    t.string "plan", null: false
     t.datetime "updated_at", null: false
-    t.index ["currency", "company_limit"], name: "index_subscription_prices_on_currency_and_tier", unique: true
+    t.index ["currency", "plan"], name: "index_subscription_prices_on_currency_and_plan", unique: true
   end
 
   create_table "subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "active", default: true, null: false
+    t.uuid "admin_id", null: false
     t.integer "billing_period"
-    t.uuid "company_id", null: false
     t.datetime "created_at", null: false
+    t.string "plan", default: "starter", null: false
     t.datetime "updated_at", null: false
-    t.index ["company_id"], name: "index_subscriptions_on_company_id", unique: true
+    t.index ["admin_id"], name: "index_subscriptions_on_admin_id", unique: true
   end
 
   create_table "support_tickets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -483,7 +486,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_24_090700) do
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.uuid "active_company_id"
-    t.integer "company_limit", default: 1
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.datetime "email_verification_sent_at"
@@ -534,7 +536,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_24_090700) do
   add_foreign_key "contracts", "users", column: "created_by_id"
   add_foreign_key "data_imports", "companies"
   add_foreign_key "data_imports", "users"
-  add_foreign_key "invoices", "companies"
+  add_foreign_key "invoices", "subscriptions"
   add_foreign_key "invoices", "users", column: "issued_by_id"
   add_foreign_key "memberships", "clients"
   add_foreign_key "memberships", "companies"
@@ -558,7 +560,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_24_090700) do
   add_foreign_key "staff_members", "companies"
   add_foreign_key "staff_members", "roles"
   add_foreign_key "staff_members", "users"
-  add_foreign_key "subscriptions", "companies"
+  add_foreign_key "subscriptions", "users", column: "admin_id"
   add_foreign_key "support_tickets", "companies"
   add_foreign_key "support_tickets", "users", column: "created_by_id"
   add_foreign_key "users", "companies", column: "active_company_id", on_delete: :nullify

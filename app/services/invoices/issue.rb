@@ -1,6 +1,7 @@
 module Invoices
-  # Records that money arrived: one invoice for the next period the gym has
-  # not paid for, and access opened again.
+  # Records that money arrived: one invoice for the next period the account
+  # has not paid for, at its plan's price, and access opened again for every
+  # salle it covers.
   #
   # The amount is frozen here, at the tariff of the day. A price change later
   # must never rewrite a past invoice — the same rule ContractPeriod#base_price
@@ -8,31 +9,30 @@ module Invoices
   class Issue
     Result = ServiceResult.define(:invoice)
 
-    def self.call(company:, issued_by:, notes: nil)
-      new(company: company, issued_by: issued_by, notes: notes).call
+    def self.call(subscription:, issued_by:, notes: nil)
+      new(subscription: subscription, issued_by: issued_by, notes: notes).call
     end
 
-    def initialize(company:, issued_by:, notes:)
-      @company = company
+    def initialize(subscription:, issued_by:, notes:)
+      @subscription = subscription
       @issued_by = issued_by
       @notes = notes
     end
 
     def call
-      subscription = company.subscription
       return failure("This gym has no subscription.") if subscription.nil?
 
       invoice = nil
       period = subscription.next_period
 
       ActiveRecord::Base.transaction do
-        invoice = Invoice.create!(
-          company: company,
+        invoice = subscription.invoices.create!(
           number: Invoice.next_number,
           period_start: period.first,
           period_end: period.last,
           amount_cents: subscription.period_cents,
-          currency: company.currency,
+          plan: subscription.plan,
+          currency: subscription.currency,
           billing_period: subscription.billing_period || :monthly,
           issued_at: Time.current,
           issued_by: issued_by,
@@ -50,7 +50,7 @@ module Invoices
 
     private
 
-    attr_reader :company, :issued_by, :notes
+    attr_reader :subscription, :issued_by, :notes
 
     def failure(message)
       Result.new(success?: false, invoice: nil, error: message)

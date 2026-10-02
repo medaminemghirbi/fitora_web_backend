@@ -64,10 +64,9 @@ module Api
         # these are how they work out what settling means.
         "Api::V1::SubscriptionController" => %w[show],
         "Api::V1::InvoicesController" => %w[index show],
-        # One of an admin's companies being locked must never trap them —
-        # they still need to see the list, switch to an unlocked one, or
-        # create a fresh one (its own independent trial).
-        "Api::V1::CompaniesController" => %w[show index create switch]
+        # Their salles are still theirs to see and move between while the
+        # account is locked.
+        "Api::V1::CompaniesController" => %w[show index switch]
       }.freeze
       private_constant :ADMIN_ALLOWED_WHEN_LOCKED
 
@@ -98,7 +97,7 @@ module Api
 
         reason = subscription.lock_reason
         if reason == :unpaid && subscription.trial?
-          "Your free trial has ended. Choose a plan and settle with Gymly to reopen access."
+          "Your free trial has ended. Choose Starter or Pro and settle with Gymly to reopen access."
         elsif reason == :unpaid
           "The period you paid for has run out. Access closed #{Subscription::GRACE_DAYS} days later; settle with Gymly to reopen it."
         else
@@ -107,25 +106,43 @@ module Api
       end
 
       # Never trust a company_id supplied by the client — always derive
-      # it from the authenticated user: an admin may now run several
-      # companies, so theirs is whichever one is their active_company
-      # (Api::V1::CompaniesController#switch), not just "the" company;
-      # staff (managers/coaches/moderators) still have exactly one, via
-      # StaffMember. Never confuse either with User#role == "superadmin", the
-      # Gymly platform operator handled entirely by Api::V1::Superadmin::*.
+      # it from the authenticated user: an admin runs several salles and a
+      # staff login may be posted to several, so it is whichever one the
+      # session switched to (Api::V1::CompaniesController#switch), and for
+      # staff only ever one it still works in (User#current_company). Never
+      # confuse either with User#role == "superadmin", the Gymly platform
+      # operator handled entirely by Api::V1::Superadmin::*.
       def current_company
-        @current_company ||= current_user&.active_company || current_staff_member&.company
+        @current_company ||= current_user&.current_company
+      end
+
+      # For a member's login: the gyms whose app they can use — the ones
+      # they belong to whose account includes the member app (Pro, or a
+      # free trial). A Starter gym's members have no app to open.
+      def member_companies
+        @member_companies ||= (current_client&.companies&.includes(admin: { subscription: :invoices }) || []).select(&:member_app?)
       end
 
       # For a member's login: the gym named by ?company_id=, checked against
-      # their own memberships. nil means "every gym I belong to" — almost
-      # always exactly one.
+      # the gyms whose app they can use. nil means "every such gym" —
+      # almost always exactly one.
       def member_company
         return @member_company if defined?(@member_company)
 
         @member_company = if params[:company_id].present?
-          current_client&.companies&.find_by(id: params[:company_id])
+          member_companies.find { |c| c.id == params[:company_id].to_s }
         end
+      end
+
+      # The member app is a Pro feature: a member none of whose gyms is on
+      # Pro (or trying Gymly) has nothing to open.
+      def require_member_app!
+        return if member_companies.any?
+
+        render json: {
+          error: "member_app_not_included",
+          message: "Your gym's plan does not include the member app."
+        }, status: :forbidden
       end
 
       # 404 rather than 403: a gym the person has not joined should not even

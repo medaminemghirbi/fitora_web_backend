@@ -9,13 +9,15 @@ module Api
       # `module Client`, so "me" avoids the collision entirely.
       class BookingsController < BaseController
         before_action :require_client!
+        before_action :require_member_app!
         before_action :require_member_company!
         before_action :set_booking, only: [ :cancel ]
 
         # GET /api/v1/me/bookings?when=upcoming|past&company_id=
         def index
           upcoming = params[:when] != "past"
-          scope = current_client.bookings_for(member_company).joins(:session)
+          scope = current_client.bookings.joins(:session)
+                                 .where(sessions: { company_id: member_company ? [ member_company.id ] : member_companies.map(&:id) })
                                  .where(upcoming ? "sessions.starts_at >= ?" : "sessions.starts_at < ?", Time.current)
                                  .order("sessions.starts_at #{upcoming ? 'asc' : 'desc'}")
 
@@ -24,8 +26,9 @@ module Api
 
         # POST /api/v1/me/bookings { session_id: }
         def create
-          # Bookable at any gym the person has joined — and nowhere else.
-          session = ::Session.where(company_id: current_client.companies.ids) # rubocop:disable Gymly/UnscopedTenantQuery
+          # Bookable at any gym the person has joined whose app they can
+          # use — and nowhere else.
+          session = ::Session.where(company_id: member_companies.map(&:id)) # rubocop:disable Gymly/UnscopedTenantQuery
                               .find_by(id: params[:session_id])
           return render(json: { error: "Session not found" }, status: :not_found) if session.nil?
 
@@ -53,7 +56,9 @@ module Api
         private
 
         def set_booking
-          @booking = current_client.bookings.find(params[:id])
+          @booking = current_client.bookings.joins(:session)
+                                   .where(sessions: { company_id: member_companies.map(&:id) })
+                                   .find(params[:id])
         end
       end
     end

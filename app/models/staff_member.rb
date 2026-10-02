@@ -12,7 +12,9 @@ class StaffMember < ApplicationRecord
   belongs_to :assigned_role, class_name: "Role", foreign_key: :role_id, inverse_of: :staff_members,
                               counter_cache: :staff_members_count
 
-  validates :user_id, uniqueness: true
+  # One record per salle: a login posted to two of an admin's salles has
+  # two, never two in the same one.
+  validates :user_id, uniqueness: { scope: :company_id }
   validate :coach_belongs_to_same_company
   validate :role_belongs_to_same_company
 

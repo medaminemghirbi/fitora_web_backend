@@ -1290,6 +1290,20 @@ paths:
                     type: string
                 required:
                 - error
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                - error
+                - message
         '429':
           description: Too Many Requests
           content:
@@ -2619,6 +2633,10 @@ paths:
                         type: boolean
                       trial_days_left:
                         type: 'null'
+                      plan:
+                        type: string
+                      member_app:
+                        type: boolean
                     required:
                     - active
                     - locked
@@ -2627,6 +2645,8 @@ paths:
                     - days_before_lock
                     - trial
                     - trial_days_left
+                    - plan
+                    - member_app
                   onboarding:
                     type:
                     - object
@@ -4010,6 +4030,20 @@ paths:
                     type: string
                 required:
                 - error
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                - error
+                - message
         '404':
           description: Not Found
           content:
@@ -4843,8 +4877,95 @@ paths:
                 required:
                 - error
                 - message
-        '422':
-          description: Unprocessable Content
+  "/api/v1/companies/network":
+    get:
+      summary: network
+      tags:
+      - Api::V1::Company
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  companies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        logo_url:
+                          type: 'null'
+                        currency:
+                          type: string
+                        active:
+                          type: boolean
+                        city:
+                          type:
+                          - string
+                          - 'null'
+                        members_count:
+                          type: integer
+                        moderator_ids:
+                          type: array
+                          items:
+                            type: string
+                      required:
+                      - id
+                      - name
+                      - logo_url
+                      - currency
+                      - active
+                      - city
+                      - members_count
+                      - moderator_ids
+                  moderators:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        full_name:
+                          type: string
+                        email:
+                          type: string
+                        role_name:
+                          type: string
+                        active:
+                          type: boolean
+                        company_ids:
+                          type: array
+                          items:
+                            type: string
+                      required:
+                      - id
+                      - full_name
+                      - email
+                      - role_name
+                      - active
+                      - company_ids
+                required:
+                - companies
+                - moderators
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '402':
+          description: Payment Required
           content:
             application/json:
               schema:
@@ -4857,6 +4978,158 @@ paths:
                 required:
                 - error
                 - message
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+  "/api/v1/companies/{id}/moderators":
+    put:
+      summary: update_moderators
+      tags:
+      - Api::V1::Company
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+              required:
+              - user_ids
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  companies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        logo_url:
+                          type: 'null'
+                        currency:
+                          type: string
+                        active:
+                          type: boolean
+                        city:
+                          type: 'null'
+                        members_count:
+                          type: integer
+                        moderator_ids:
+                          type: array
+                          items:
+                            type: string
+                      required:
+                      - id
+                      - name
+                      - logo_url
+                      - currency
+                      - active
+                      - city
+                      - members_count
+                      - moderator_ids
+                  moderators:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        full_name:
+                          type: string
+                        email:
+                          type: string
+                        role_name:
+                          type: string
+                        active:
+                          type: boolean
+                        company_ids:
+                          type: array
+                          items:
+                            type: string
+                      required:
+                      - id
+                      - full_name
+                      - email
+                      - role_name
+                      - active
+                      - company_ids
+                required:
+                - companies
+                - moderators
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
   "/api/v1/companies/{id}/switch":
     post:
       summary: switch
@@ -7962,6 +8235,8 @@ paths:
                           type: string
                         billing_period:
                           type: string
+                        plan:
+                          type: string
                         trial:
                           type: boolean
                         issued_at:
@@ -7978,6 +8253,7 @@ paths:
                       - amount
                       - currency
                       - billing_period
+                      - plan
                       - trial
                       - issued_at
                       - issued_by
@@ -8891,6 +9167,8 @@ paths:
                 type: object
                 properties:
                   error:
+                    type: string
+                  message:
                     type: string
                 required:
                 - error
@@ -11851,6 +12129,10 @@ paths:
                         type: boolean
                       billing_period:
                         type: string
+                      plan:
+                        type: string
+                      member_app:
+                        type: boolean
                       lock_reason:
                         type:
                         - string
@@ -11875,6 +12157,8 @@ paths:
                     - id
                     - active
                     - billing_period
+                    - plan
+                    - member_app
                     - lock_reason
                     - paid_through
                     - current_period_paid
@@ -11901,6 +12185,8 @@ paths:
                           type: string
                         billing_period:
                           type: string
+                        plan:
+                          type: string
                         trial:
                           type: boolean
                         issued_at:
@@ -11917,10 +12203,13 @@ paths:
                       - amount
                       - currency
                       - billing_period
+                      - plan
                       - trial
                       - issued_at
                       - issued_by
                       - notes
+                  companies_count:
+                    type: integer
                   clients_used:
                     type: integer
                   staff_used:
@@ -11943,27 +12232,19 @@ paths:
                     type: array
                     items:
                       type: string
-                  company_limit:
-                    type: integer
-                  companies_count:
-                    type: integer
-                  company_limit_reached:
-                    type: boolean
-                  company_tiers:
+                  plans:
                     type: array
                     items:
                       type: object
                       properties:
-                        company_limit:
-                          type:
-                          - integer
-                          - 'null'
+                        key:
+                          type: string
                         monthly_cents:
                           type: integer
                         annual_cents:
                           type: integer
                       required:
-                      - company_limit
+                      - key
                       - monthly_cents
                       - annual_cents
                   payout:
@@ -11976,7 +12257,7 @@ paths:
                       bank_name:
                         type: string
                       holder:
-                        type: string
+                        type: 'null'
                       swift:
                         type: 'null'
                       reference:
@@ -11990,6 +12271,7 @@ paths:
                 required:
                 - subscription
                 - invoices
+                - companies_count
                 - clients_used
                 - staff_used
                 - currency
@@ -12000,10 +12282,7 @@ paths:
                 - arrears_cents
                 - trial_days
                 - included_modules
-                - company_limit
-                - companies_count
-                - company_limit_reached
-                - company_tiers
+                - plans
                 - payout
         '401':
           description: Unauthorized
@@ -12312,8 +12591,6 @@ paths:
                               type: string
                             phone:
                               type: 'null'
-                            company_limit:
-                              type: integer
                             companies_count:
                               type: integer
                           required:
@@ -12321,8 +12598,11 @@ paths:
                           - full_name
                           - email
                           - phone
-                          - company_limit
                           - companies_count
+                        plan:
+                          type:
+                          - string
+                          - 'null'
                         subscription:
                           type:
                           - object
@@ -12334,6 +12614,10 @@ paths:
                               type: boolean
                             billing_period:
                               type: string
+                            plan:
+                              type: string
+                            member_app:
+                              type: boolean
                             lock_reason:
                               type:
                               - string
@@ -12352,12 +12636,34 @@ paths:
                           - id
                           - active
                           - billing_period
+                          - plan
+                          - member_app
                           - lock_reason
                           - paid_through
                           - current_period_paid
                           - days_before_lock
                           - trial
                           - trial_days_left
+                        account_companies:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                              city:
+                                type:
+                                - string
+                                - 'null'
+                              current:
+                                type: boolean
+                            required:
+                            - id
+                            - name
+                            - city
+                            - current
                         arrears_cents:
                           type: integer
                         next_invoice:
@@ -12416,7 +12722,9 @@ paths:
                       - created_at
                       - access_open
                       - admin
+                      - plan
                       - subscription
+                      - account_companies
                       - arrears_cents
                       - next_invoice
                       - usage
@@ -12532,8 +12840,6 @@ paths:
                             type: string
                           phone:
                             type: 'null'
-                          company_limit:
-                            type: integer
                           companies_count:
                             type: integer
                         required:
@@ -12541,8 +12847,11 @@ paths:
                         - full_name
                         - email
                         - phone
-                        - company_limit
                         - companies_count
+                      plan:
+                        type:
+                        - string
+                        - 'null'
                       subscription:
                         type:
                         - object
@@ -12554,6 +12863,10 @@ paths:
                             type: boolean
                           billing_period:
                             type: string
+                          plan:
+                            type: string
+                          member_app:
+                            type: boolean
                           lock_reason:
                             type: 'null'
                           paid_through:
@@ -12570,12 +12883,32 @@ paths:
                         - id
                         - active
                         - billing_period
+                        - plan
+                        - member_app
                         - lock_reason
                         - paid_through
                         - current_period_paid
                         - days_before_lock
                         - trial
                         - trial_days_left
+                      account_companies:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            city:
+                              type: 'null'
+                            current:
+                              type: boolean
+                          required:
+                          - id
+                          - name
+                          - city
+                          - current
                       arrears_cents:
                         type: integer
                       next_invoice:
@@ -12636,7 +12969,9 @@ paths:
                     - created_at
                     - access_open
                     - admin
+                    - plan
                     - subscription
+                    - account_companies
                     - arrears_cents
                     - next_invoice
                     - usage
@@ -12678,177 +13013,6 @@ paths:
                     type: string
                 required:
                 - error
-  "/api/v1/superadmin/companies/{id}/company_limit":
-    patch:
-      summary: update_company_limit
-      tags:
-      - Api::V1::Superadmin::Company
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              properties:
-                company_limit:
-                  type: string
-              required:
-              - company_limit
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  company:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                      name:
-                        type: string
-                      city:
-                        type: 'null'
-                      country:
-                        type: 'null'
-                      currency:
-                        type: string
-                      currency_symbol:
-                        type: string
-                      locale:
-                        type: string
-                      active:
-                        type: boolean
-                      created_at:
-                        type: string
-                      access_open:
-                        type: boolean
-                      admin:
-                        type: object
-                        properties:
-                          id:
-                            type: string
-                          full_name:
-                            type: string
-                          email:
-                            type: string
-                          phone:
-                            type: 'null'
-                          company_limit:
-                            type:
-                            - integer
-                            - 'null'
-                          companies_count:
-                            type: integer
-                        required:
-                        - id
-                        - full_name
-                        - email
-                        - phone
-                        - company_limit
-                        - companies_count
-                      subscription:
-                        type: 'null'
-                      arrears_cents:
-                        type: integer
-                      next_invoice:
-                        type: 'null'
-                      usage:
-                        type: object
-                        properties:
-                          clients:
-                            type: integer
-                          staff:
-                            type: integer
-                          activities:
-                            type: integer
-                          sessions_last_30_days:
-                            type: integer
-                          last_session_at:
-                            type: 'null'
-                        required:
-                        - clients
-                        - staff
-                        - activities
-                        - sessions_last_30_days
-                        - last_session_at
-                      monthly_subscription_cents:
-                        type: integer
-                      annual_subscription_cents:
-                        type: integer
-                      annual_discount_percent:
-                        type: integer
-                      included_modules:
-                        type: array
-                        items:
-                          type: string
-                    required:
-                    - id
-                    - name
-                    - city
-                    - country
-                    - currency
-                    - currency_symbol
-                    - locale
-                    - active
-                    - created_at
-                    - access_open
-                    - admin
-                    - subscription
-                    - arrears_cents
-                    - next_invoice
-                    - usage
-                    - monthly_subscription_cents
-                    - annual_subscription_cents
-                    - annual_discount_percent
-                    - included_modules
-                required:
-                - company
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                required:
-                - error
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                required:
-                - error
-        '422':
-          description: Unprocessable Content
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                  errors:
-                    type: array
-                    items:
-                      type: string
-                required:
-                - error
-                - errors
   "/api/v1/superadmin/companies/{id}/impersonate":
     post:
       summary: impersonate
@@ -13031,6 +13195,8 @@ paths:
                         type: string
                       billing_period:
                         type: string
+                      plan:
+                        type: string
                       trial:
                         type: boolean
                       issued_at:
@@ -13047,6 +13213,7 @@ paths:
                     - amount
                     - currency
                     - billing_period
+                    - plan
                     - trial
                     - issued_at
                     - issued_by
@@ -13085,8 +13252,6 @@ paths:
                             type: string
                           phone:
                             type: 'null'
-                          company_limit:
-                            type: integer
                           companies_count:
                             type: integer
                         required:
@@ -13094,8 +13259,9 @@ paths:
                         - full_name
                         - email
                         - phone
-                        - company_limit
                         - companies_count
+                      plan:
+                        type: string
                       subscription:
                         type: object
                         properties:
@@ -13105,6 +13271,10 @@ paths:
                             type: boolean
                           billing_period:
                             type: string
+                          plan:
+                            type: string
+                          member_app:
+                            type: boolean
                           lock_reason:
                             type: 'null'
                           paid_through:
@@ -13123,12 +13293,32 @@ paths:
                         - id
                         - active
                         - billing_period
+                        - plan
+                        - member_app
                         - lock_reason
                         - paid_through
                         - current_period_paid
                         - days_before_lock
                         - trial
                         - trial_days_left
+                      account_companies:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            city:
+                              type: 'null'
+                            current:
+                              type: boolean
+                          required:
+                          - id
+                          - name
+                          - city
+                          - current
                       arrears_cents:
                         type: integer
                       next_invoice:
@@ -13185,7 +13375,9 @@ paths:
                     - created_at
                     - access_open
                     - admin
+                    - plan
                     - subscription
+                    - account_companies
                     - arrears_cents
                     - next_invoice
                     - usage
@@ -13276,8 +13468,6 @@ paths:
                             type: string
                           phone:
                             type: 'null'
-                          company_limit:
-                            type: integer
                           companies_count:
                             type: integer
                         required:
@@ -13285,8 +13475,9 @@ paths:
                         - full_name
                         - email
                         - phone
-                        - company_limit
                         - companies_count
+                      plan:
+                        type: string
                       subscription:
                         type: object
                         properties:
@@ -13296,6 +13487,10 @@ paths:
                             type: boolean
                           billing_period:
                             type: string
+                          plan:
+                            type: string
+                          member_app:
+                            type: boolean
                           lock_reason:
                             type: 'null'
                           paid_through:
@@ -13312,12 +13507,32 @@ paths:
                         - id
                         - active
                         - billing_period
+                        - plan
+                        - member_app
                         - lock_reason
                         - paid_through
                         - current_period_paid
                         - days_before_lock
                         - trial
                         - trial_days_left
+                      account_companies:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            city:
+                              type: 'null'
+                            current:
+                              type: boolean
+                          required:
+                          - id
+                          - name
+                          - city
+                          - current
                       arrears_cents:
                         type: integer
                       next_invoice:
@@ -13374,7 +13589,9 @@ paths:
                     - created_at
                     - access_open
                     - admin
+                    - plan
                     - subscription
+                    - account_companies
                     - arrears_cents
                     - next_invoice
                     - usage
@@ -13466,8 +13683,6 @@ paths:
                             type: string
                           phone:
                             type: 'null'
-                          company_limit:
-                            type: integer
                           companies_count:
                             type: integer
                         required:
@@ -13475,10 +13690,29 @@ paths:
                         - full_name
                         - email
                         - phone
-                        - company_limit
                         - companies_count
+                      plan:
+                        type: 'null'
                       subscription:
                         type: 'null'
+                      account_companies:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            city:
+                              type: 'null'
+                            current:
+                              type: boolean
+                          required:
+                          - id
+                          - name
+                          - city
+                          - current
                       arrears_cents:
                         type: integer
                       next_invoice:
@@ -13524,7 +13758,9 @@ paths:
                     - created_at
                     - access_open
                     - admin
+                    - plan
                     - subscription
+                    - account_companies
                     - arrears_cents
                     - next_invoice
                     - usage
@@ -13589,6 +13825,8 @@ paths:
             schema:
               type: object
               properties:
+                plan:
+                  type: string
                 active:
                   type: string
                 billing_period:
@@ -13635,8 +13873,6 @@ paths:
                             type: string
                           phone:
                             type: 'null'
-                          company_limit:
-                            type: integer
                           companies_count:
                             type: integer
                         required:
@@ -13644,8 +13880,9 @@ paths:
                         - full_name
                         - email
                         - phone
-                        - company_limit
                         - companies_count
+                      plan:
+                        type: string
                       subscription:
                         type: object
                         properties:
@@ -13655,6 +13892,10 @@ paths:
                             type: boolean
                           billing_period:
                             type: string
+                          plan:
+                            type: string
+                          member_app:
+                            type: boolean
                           lock_reason:
                             type:
                             - string
@@ -13677,12 +13918,32 @@ paths:
                         - id
                         - active
                         - billing_period
+                        - plan
+                        - member_app
                         - lock_reason
                         - paid_through
                         - current_period_paid
                         - days_before_lock
                         - trial
                         - trial_days_left
+                      account_companies:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            city:
+                              type: 'null'
+                            current:
+                              type: boolean
+                          required:
+                          - id
+                          - name
+                          - city
+                          - current
                       arrears_cents:
                         type: integer
                       next_invoice:
@@ -13739,7 +14000,9 @@ paths:
                     - created_at
                     - access_open
                     - admin
+                    - plan
                     - subscription
+                    - account_companies
                     - arrears_cents
                     - next_invoice
                     - usage
@@ -13771,6 +14034,22 @@ paths:
                     type: string
                 required:
                 - error
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
   "/api/v1/superadmin/metrics":
     get:
       summary: show
@@ -13797,12 +14076,23 @@ paths:
                         type: integer
                       new_last_month:
                         type: integer
+                      plans:
+                        type: object
+                        properties:
+                          starter:
+                            type: integer
+                          pro:
+                            type: integer
+                        required:
+                        - starter
+                        - pro
                     required:
                     - total
                     - open
                     - locked
                     - new_this_month
                     - new_last_month
+                    - plans
                   members:
                     type: object
                     properties:
@@ -13912,31 +14202,31 @@ paths:
                     type: string
                   annual_discount_percent:
                     type: integer
-                  tiers:
+                  plans:
                     type: array
                     items:
                       type: object
                       properties:
-                        company_limit:
-                          type: integer
-                        unlimited:
-                          type: boolean
+                        plan:
+                          type: string
                         monthly_cents:
                           type: integer
                         annual_cents:
                           type: integer
+                        accounts_count:
+                          type: integer
                       required:
-                      - company_limit
-                      - unlimited
+                      - plan
                       - monthly_cents
                       - annual_cents
+                      - accounts_count
                   companies_count:
                     type: integer
                 required:
                 - currencies
                 - currency
                 - annual_discount_percent
-                - tiers
+                - plans
                 - companies_count
         '401':
           description: Unauthorized
@@ -13978,20 +14268,20 @@ paths:
               properties:
                 currency:
                   type: string
-                tiers:
+                plans:
                   type: object
                   properties:
-                    '1':
+                    starter:
                       type: string
-                    '3':
+                    pro:
                       type: string
-                    '0':
+                    premium:
                       type: string
                 annual_discount_percent:
                   type: string
               required:
               - currency
-              - tiers
+              - plans
       responses:
         '200':
           description: OK
@@ -14008,31 +14298,31 @@ paths:
                     type: string
                   annual_discount_percent:
                     type: integer
-                  tiers:
+                  plans:
                     type: array
                     items:
                       type: object
                       properties:
-                        company_limit:
-                          type: integer
-                        unlimited:
-                          type: boolean
+                        plan:
+                          type: string
                         monthly_cents:
                           type: integer
                         annual_cents:
                           type: integer
+                        accounts_count:
+                          type: integer
                       required:
-                      - company_limit
-                      - unlimited
+                      - plan
                       - monthly_cents
                       - annual_cents
+                      - accounts_count
                   companies_count:
                     type: integer
                 required:
                 - currencies
                 - currency
                 - annual_discount_percent
-                - tiers
+                - plans
                 - companies_count
         '401':
           description: Unauthorized
