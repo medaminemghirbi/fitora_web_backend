@@ -127,7 +127,7 @@ RSpec.describe "Api::V1::Superadmin::Companies", type: :request do
       expect(log.metadata).to include("plan_from" => "starter", "plan" => "pro")
     end
 
-    it "refuses a plan Gymly does not sell" do
+    it "refuses a plan Fitora does not sell" do
       company = create(:company)
       create(:subscription, company: company)
 
@@ -195,7 +195,7 @@ RSpec.describe "Api::V1::Superadmin::Companies", type: :request do
   end
 
   describe "what an activation decision needs to know" do
-    it "reports what the gym is actually doing with Gymly" do
+    it "reports what the gym is actually doing with Fitora" do
       company = create(:company)
       create(:subscription, company: company)
       activity = create(:activity, company: company)
@@ -370,7 +370,7 @@ RSpec.describe "Api::V1::Superadmin::Companies", type: :request do
       expect(AuditLog.last.action).to eq("subscription.invoice_voided")
     end
 
-    it "is closed to anyone who is not a Gymly superadmin" do
+    it "is closed to anyone who is not a Fitora superadmin" do
       create(:subscription, company: company)
 
       post "/api/v1/superadmin/companies/#{company.id}/invoices", headers: auth_headers(company.admin)

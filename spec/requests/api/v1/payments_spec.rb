@@ -50,7 +50,7 @@ RSpec.describe "Api::V1::Payments", type: :request do
       contract = create(:contract, client: client, contract_type: create(:contract_type, company: company))
 
       post "/api/v1/payments",
-           params: { client_id: client.id, amount: 50, payment_method: "cash", contract_period_id: contract.current_period.id },
+           params: { client_id: client.id, amount: 50, payment_method: "cash", contract_id: contract.id },
            headers: auth_headers(admin)
 
       expect(response).to have_http_status(:created)

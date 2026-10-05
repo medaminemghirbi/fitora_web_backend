@@ -74,7 +74,7 @@ module Api
         end
 
         # PATCH /api/v1/superadmin/companies/:id/settings — tenant-wide display
-        # settings a Gymly superadmin controls on the company's behalf: the app
+        # settings a Fitora superadmin controls on the company's behalf: the app
         # language and the billing/display currency. { company: { currency:,
         # locale: } }.
         def update_settings

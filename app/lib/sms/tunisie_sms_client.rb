@@ -15,7 +15,7 @@ module Sms
       new.send_message(mobile: mobile, text: text)
     end
 
-    def initialize(api_key: ENV["TUNISIESMS_API_KEY"], sender: ENV.fetch("TUNISIESMS_SENDER", "Gymly"))
+    def initialize(api_key: ENV["TUNISIESMS_API_KEY"], sender: ENV.fetch("TUNISIESMS_SENDER", "Fitora"))
       @api_key = api_key
       @sender = sender
     end

@@ -213,7 +213,7 @@ RSpec.describe "Api::V1::Clients", type: :request do
 
       client = Client.find(body["client"]["id"])
       expect(client.current_contract(company)).to be_present
-      expect(client.current_contract(company).current_period).to be_paid
+      expect(client.current_contract(company)).to be_paid
     end
 
     it "sells the plan without taking money when the desk is not collecting yet" do
@@ -221,7 +221,7 @@ RSpec.describe "Api::V1::Clients", type: :request do
 
       expect(response).to have_http_status(:created)
       expect(response.parsed_body["payment"]).to be_nil
-      expect(Client.find(response.parsed_body["client"]["id"]).current_contract(company).current_period).to be_unpaid
+      expect(Client.find(response.parsed_body["client"]["id"]).current_contract(company)).to be_unpaid
     end
 
     it "still records a member on their own when no plan is picked" do

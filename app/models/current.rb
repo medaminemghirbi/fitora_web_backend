@@ -5,7 +5,7 @@
 # an argument. The one thing here is the exception, because it is invisible
 # by design.
 #
-# When a Gymly superadmin impersonates an admin
+# When a Fitora superadmin impersonates an admin
 # (Api::V1::Superadmin::CompaniesController#impersonate), current_user IS the
 # admin for the whole session — that is the point, so the superadmin sees exactly
 # what the admin sees. The consequence is that every audit log written during

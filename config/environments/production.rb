@@ -32,7 +32,7 @@ Rails.application.configure do
   # Origins allowed to open the /cable WebSocket. Set FRONTEND_ORIGINS to the
   # deployed front-end URL(s), comma-separated.
   config.action_cable.allowed_request_origins =
-    ENV.fetch("FRONTEND_ORIGINS", "https://app.gymly.io").split(",")
+    ENV.fetch("FRONTEND_ORIGINS", "https://app.fitora.io").split(",")
 
   # Log to STDOUT with the current request id as a default log tag.
   config.log_tags = [ :request_id ]

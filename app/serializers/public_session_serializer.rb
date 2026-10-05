@@ -17,6 +17,10 @@ class PublicSessionSerializer
       activity_name: session.activity.name,
       activity_emoji: session.activity.emoji,
       coach_name: session.coach&.full_name,
+      # A one-to-one slot (EMS, personal training): the app shows it as an
+      # appointment to take rather than a class to join.
+      individual: session.activity.individual?,
+      space_name: session.space&.name,
       starts_at: session.starts_at,
       ends_at: session.ends_at,
       capacity: session.capacity,

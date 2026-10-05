@@ -4,14 +4,14 @@ require "prawn/table"
 Prawn::Fonts::AFM.hide_m17n_warning = true
 
 module Receipts
-  # Gymly's own invoice to a gym, for one period of access.
+  # Fitora's own invoice to a gym, for one period of access.
   #
   # The counterpart of ContractPdf, which invoices a gym's member: same
-  # shape, opposite direction — here Gymly is the sender and the gym the
+  # shape, opposite direction — here Fitora is the sender and the gym the
   # recipient. Rendered on demand, never stored: the Invoice row holds
   # everything, amount included, frozen at issue.
   #
-  # No VAT line. Gymly's tax position is not recorded anywhere in the app,
+  # No VAT line. Fitora's tax position is not recorded anywhere in the app,
   # and inventing a rate on a document a gym may file is worse than leaving
   # it off — add it here once the real matricule fiscal exists.
   class SubscriptionInvoicePdf
@@ -57,7 +57,7 @@ module Receipts
       half = pdf.bounds.width / 2
 
       pdf.fill_color INK
-      pdf.text_box "GYMLY", at: [ 0, top ], width: half, size: 22, style: :bold
+      pdf.text_box "FITORA", at: [ 0, top ], width: half, size: 22, style: :bold
       pdf.fill_color GREY
       pdf.text_box "Logiciel de gestion pour salles de sport", at: [ 0, top - 26 ], width: half, size: 9
 
@@ -124,15 +124,15 @@ module Receipts
     def page_footer(pdf)
       pdf.repeat(:all) do
         pdf.fill_color GREY
-        pdf.draw_text "Gymly · #{invoice.number}", at: [ 0, 12 ], size: 8
+        pdf.draw_text "Fitora · #{invoice.number}", at: [ 0, 12 ], size: 8
         pdf.fill_color "000000"
       end
     end
 
     def designation
-      return "Gymly — période d'essai" if invoice.trial?
+      return "Fitora — période d'essai" if invoice.trial?
 
-      "Gymly #{PLAN_LABELS.fetch(invoice.plan, invoice.plan)} — #{LABEL_BY_PERIOD.fetch(invoice.billing_period, invoice.billing_period)}"
+      "Fitora #{PLAN_LABELS.fetch(invoice.plan, invoice.plan)} — #{LABEL_BY_PERIOD.fetch(invoice.billing_period, invoice.billing_period)}"
     end
 
     # PDF's built-in fonts are WinAnsi: an arrow or an em-dash here raises

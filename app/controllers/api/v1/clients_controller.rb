@@ -73,7 +73,7 @@ module Api
       def show
         render json: {
           client: ClientSerializer.new(@client, detailed: true, company: current_company).as_json,
-          contracts: @client.contracts_for(current_company).includes(:contract_type).order(created_at: :desc).map { |m| ContractSerializer.new(m).as_json },
+          contracts: @client.contracts_for(current_company).for_serializer.order(created_at: :desc).map { |m| ContractSerializer.new(m).as_json },
           bookings: @client.bookings_for(current_company).includes(session: [ :activity, :coach ]).order(created_at: :desc).limit(20).map { |b| BookingSerializer.new(b).as_json },
           payments: @client.payments_for(current_company).recent.limit(20).map { |p| PaymentSerializer.new(p).as_json }
         }
@@ -87,10 +87,10 @@ module Api
       def create
         return render_forbidden if subscription_params.present? && !capability?(:contracts)
 
-        client = period = nil
+        client = contract = nil
         ActiveRecord::Base.transaction do
           client = Client.enrol!(current_company, person: person_params, membership: membership_params)
-          period = sell_plan_to(client) if subscription_params.present?
+          contract = sell_plan_to(client) if subscription_params.present?
         end
 
         AuditLog.record!(
@@ -100,8 +100,8 @@ module Api
         )
         render json: {
           client: ClientSerializer.new(client, company: current_company).as_json,
-          contract: period && ContractSerializer.new(period.contract).as_json,
-          payment: period && PaymentSerializer.new(period.payments.first).as_json
+          contract: contract && ContractSerializer.new(contract).as_json,
+          payment: contract && PaymentSerializer.new(contract.payments.first).as_json
         }, status: :created
       end
 
@@ -118,7 +118,7 @@ module Api
         if @client.identity_shared_beyond?(current_company) && (locked = locked_identity_changes(changes)).any?
           return render json: {
             error: "identity_locked",
-            message: "This member's #{locked.map { |f| f.humanize.downcase }.to_sentence} belong to their own Gymly account, so the gym can't change them.",
+            message: "This member's #{locked.map { |f| f.humanize.downcase }.to_sentence} belong to their own Fitora account, so the gym can't change them.",
             errors: locked.map { |field| "#{field.humanize} is managed by the member" }
           }, status: :unprocessable_content
         end
@@ -143,7 +143,7 @@ module Api
         unless current_company.member_app?
           return render json: {
             error: "member_app_not_included",
-            message: "The member app comes with Gymly Pro."
+            message: "The member app comes with Fitora Pro."
           }, status: :forbidden
         end
         return render_error("This member has no email address to invite.") if @client.email.blank?
@@ -183,11 +183,19 @@ module Api
         plan = current_company.contract_types.find_by(id: subscription_params[:contract_type_id])
         raise ApplicationRecord::Refused, "Plan not found" if plan.nil?
 
-        activity = current_company.activities.find_by(id: subscription_params[:activity_id])
-        raise ApplicationRecord::Refused, "Activity not found" if activity.nil?
+        # A pack is sold in place of an activity — one or the other.
+        pack = nil
+        activity = nil
+        if subscription_params[:pack_id].present?
+          pack = current_company.packs.active.find_by(id: subscription_params[:pack_id])
+          raise ApplicationRecord::Refused, "Pack not found" if pack.nil?
+        else
+          activity = current_company.activities.find_by(id: subscription_params[:activity_id])
+          raise ApplicationRecord::Refused, "Activity not found" if activity.nil?
+        end
 
         Contract.sell!(
-          client: client, contract_type: plan, activity: activity, created_by: current_user,
+          client: client, contract_type: plan, activity: activity, pack: pack, created_by: current_user,
           starts_on: subscription_params[:starts_on].presence&.to_date || Date.current,
           discount: subscription_params[:discount].presence || 0,
           collect_payment: subscription_params[:collect_payment],
@@ -214,16 +222,19 @@ module Api
       end
 
       # An all-access contract (activity_id NULL) covers every activity its
-      # plan is priced for, so filtering on an activity has to find those too
-      # — see Contract#covers_activity?, which is the same rule.
+      # plan is priced for, and a pack contract every activity in its pack,
+      # so filtering on an activity has to find those too — see
+      # Contract#covers_activity?, which is the same rule.
       def activity_holders
         id = params[:activity_id]
         all_access_plans = current_company.contract_types
                                           .joins(:contract_type_activities)
                                           .where(contract_type_activities: { activity_id: id })
+        packs_with_it = PackActivity.where(activity_id: id).select(:pack_id)
 
         company_contracts.where(activity_id: id)
-                         .or(company_contracts.where(activity_id: nil, contract_type_id: all_access_plans))
+                         .or(company_contracts.where(activity_id: nil, pack_id: nil, contract_type_id: all_access_plans))
+                         .or(company_contracts.where(pack_id: packs_with_it))
       end
 
       def parse_date(value)
@@ -247,8 +258,8 @@ module Api
         case status
         when "active" then scope.where(memberships: { active: true })
         when "inactive" then scope.where(memberships: { active: false })
-        when "contract_active" then scope.where(id: client_ids_with_period(current_company.contract_periods.merge(ContractPeriod.currently_active)))
-        when "contract_expired" then scope.where(id: client_ids_with_period(expired_periods))
+        when "contract_active" then scope.where(id: company_contracts.currently_active.select(:client_id))
+        when "contract_expired" then scope.where(id: company_contracts.expired.select(:client_id))
         when "no_contract" then scope.where.not(id: company_contracts.select(:client_id))
         else scope
         end
@@ -256,16 +267,6 @@ module Api
 
       def company_contracts
         current_company.contracts
-      end
-
-      def expired_periods
-        current_company.contract_periods.where(status: :expired)
-      end
-
-      # `periods` is always one of this company's own period scopes, so a
-      # person's contracts at another gym can never match here.
-      def client_ids_with_period(periods)
-        company_contracts.where(id: periods.select(:contract_id)).select(:client_id)
       end
 
       # What each status would return for the CURRENT search — the filter rail
@@ -291,7 +292,7 @@ module Api
         return {} if params[:subscription].blank?
 
         params.require(:subscription).permit(
-          :contract_type_id, :activity_id, :starts_on, :discount,
+          :contract_type_id, :activity_id, :pack_id, :starts_on, :discount,
           :collect_payment, :payment_method, :payment_notes
         )
       end
@@ -326,7 +327,8 @@ module Api
       def client_params
         params.require(:client).permit(
           :first_name, :last_name, :email, :phone, :date_of_birth, :gender,
-          :address, :emergency_contact_name, :emergency_contact_phone, :notes, :active
+          :address, :emergency_contact_name, :emergency_contact_phone, :notes, :active,
+          :health_notes, :waiver_signed_on
         )
       end
     end

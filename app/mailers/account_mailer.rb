@@ -13,7 +13,7 @@ class AccountMailer < ApplicationMailer
     @reset_url = "#{FRONTEND_URL}/auth/reset-password?token=#{raw_token}"
     @expires_in_minutes = PasswordResettable::TOKEN_EXPIRY.to_i / 60
 
-    mail(to: record.email, subject: "Réinitialisez votre mot de passe Gymly")
+    mail(to: record.email, subject: "Réinitialisez votre mot de passe Fitora")
   end
 
   def email_verification(record, raw_token)
@@ -24,7 +24,7 @@ class AccountMailer < ApplicationMailer
     # For an admin the link is what opens the account, and the mail says so.
     @opens_account = record.is_a?(User) && record.admin?
 
-    mail(to: record.email, subject: "Confirmez votre adresse e-mail Gymly")
+    mail(to: record.email, subject: "Confirmez votre adresse e-mail Fitora")
   end
 
   # A gym switching on a member's own app. The member chooses their password
@@ -35,6 +35,6 @@ class AccountMailer < ApplicationMailer
     @invite_url = "#{FRONTEND_URL}/auth/accept-invitation?token=#{raw_token}"
     @expires_in_days = Invitable::INVITATION_EXPIRY.to_i / 1.day
 
-    mail(to: client.email, subject: "#{company.name} vous invite sur Gymly")
+    mail(to: client.email, subject: "#{company.name} vous invite sur Fitora")
   end
 end

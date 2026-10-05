@@ -39,11 +39,13 @@ module Api
         unless current_user.may_open_salle?
           return render json: {
             error: "multi_salle_not_included",
-            message: "Several salles come with Gymly Pro."
+            message: "Several salles come with Fitora Pro."
           }, status: :forbidden
         end
 
-        company = Company.open!(admin: current_user, attributes: company_params)
+        company = Company.open!(admin: current_user, attributes: company_params,
+                                activity_template_ids: params[:activity_template_ids],
+                                custom_activities: custom_activities_param)
         render json: { company: CompanySerializer.new(company).as_json }, status: :created
       end
 
@@ -52,9 +54,13 @@ module Api
         require_company!
         return if performed?
 
-        # currency + locale are tenant-wide settings a Gymly superadmin manages
+        # currency + locale are tenant-wide settings a Fitora superadmin manages
         # (Api::V1::Superadmin::CompaniesController#update_settings); the admin
         # only picks a currency once, at signup.
+        # A signature is taken off with remove_signature, never by sending
+        # an empty file.
+        current_company.signature.purge if ActiveModel::Type::Boolean.new.cast(params.dig(:company, :remove_signature))
+
         if current_company.update(company_params.except(:currency))
           render json: { company: CompanySerializer.new(current_company).as_json }
         else
@@ -117,11 +123,18 @@ module Api
         }
       end
 
+      # Activities the salle names itself at signup — [{ name:, emoji: }].
+      def custom_activities_param
+        params.fetch(:custom_activities, []).map { |entry| entry.permit(:name, :emoji) }
+      end
+
       def company_params
         permitted = params.require(:company).permit(
           :name, :description, :phone, :email, :country, :city,
           :address, :latitude, :longitude, :timezone, :currency,
           :slug, :logo,
+          # Who signs the gym's contracts, and what they print (Settings).
+          :signature, :signatory_name, :contract_terms,
           # Hours and branding are settings now, but the app still sends them
           # flat. Accept them where they have always been and fold them in.
           :primary_color, :business_hours_start, :business_hours_end,

@@ -1,4 +1,4 @@
-# Kamal 2 deploy config for Gymly.  Run from backend/:  kamal deploy
+# Kamal 2 deploy config for Fitora.  Run from backend/:  kamal deploy
 #
 # Fill every <PLACEHOLDER> before the first deploy, then:
 #   bin/kamal setup            # first time (installs Docker, boots accessories)
@@ -8,9 +8,9 @@
 # origin), a Sidekiq worker, plus Postgres and Redis as accessories, and a
 # backup accessory that ships a nightly dump off the box.
 
-service: gymly
+service: fitora
 
-image: <REGISTRY_USER>/gymly
+image: <REGISTRY_USER>/fitora
 
 servers:
   web:
@@ -25,7 +25,7 @@ servers:
 
 proxy:
   ssl: true
-  host: <APP_DOMAIN>          # e.g. app.gymly.io — DNS A record → <VPS_IP>
+  host: <APP_DOMAIN>          # e.g. app.fitora.io — DNS A record → <VPS_IP>
   app_port: 3000
   healthcheck:
     path: /up
@@ -49,11 +49,11 @@ env:
     RAILS_LOG_LEVEL: info
     APP_HOST: <APP_DOMAIN>
     FRONTEND_ORIGINS: https://<APP_DOMAIN>
-    MAIL_FROM: "Gymly <no-reply@<APP_DOMAIN>>"
-    REDIS_URL: redis://gymly-redis:6379/1
+    MAIL_FROM: "Fitora <no-reply@<APP_DOMAIN>>"
+    REDIS_URL: redis://fitora-redis:6379/1
     # The password comes from BACKEND_DATABASE_PASSWORD (config/database.yml).
-    DB_HOST: gymly-db
-    DB_USER: gymly
+    DB_HOST: fitora-db
+    DB_USER: fitora
     DB_NAME: backend_production
     SMTP_ADDRESS: <SMTP_HOST>
     SMTP_PORT: 587
@@ -64,10 +64,10 @@ env:
     - BACKEND_DATABASE_PASSWORD
     - SMTP_USERNAME
     - SMTP_PASSWORD
-    - GYMLY_RIB
-    - GYMLY_BANK_NAME
-    - GYMLY_ACCOUNT_HOLDER
-    - GYMLY_SWIFT
+    - FITORA_RIB
+    - FITORA_BANK_NAME
+    - FITORA_ACCOUNT_HOLDER
+    - FITORA_SWIFT
     - SENTRY_DSN
     - SIDEKIQ_WEB_PASSWORD
     - TUNISIESMS_API_KEY
@@ -82,7 +82,7 @@ accessories:
     port: "127.0.0.1:5432:5432"
     env:
       clear:
-        POSTGRES_USER: gymly
+        POSTGRES_USER: fitora
         POSTGRES_DB: backend_production
       secret:
         - POSTGRES_PASSWORD
@@ -112,9 +112,9 @@ accessories:
         S3_BUCKET: <BACKUP_S3_BUCKET>
         S3_PREFIX: postgres
         # S3_ENDPOINT: https://<endpoint>   # any S3-compatible store that is not AWS
-        POSTGRES_HOST: gymly-db
+        POSTGRES_HOST: fitora-db
         POSTGRES_DATABASE: backend_production
-        POSTGRES_USER: gymly
+        POSTGRES_USER: fitora
       secret:
         - POSTGRES_PASSWORD
         - S3_ACCESS_KEY_ID
@@ -124,7 +124,7 @@ accessories:
 # Uploaded files live on local disk until storage.yml :production points at
 # S3 — named volume so a redeploy doesn't wipe them.
 volumes:
-  - "gymly_storage:/rails/storage"
+  - "fitora_storage:/rails/storage"
 
 aliases:
   console: app exec --interactive --reuse "bin/rails console"

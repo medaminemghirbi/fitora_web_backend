@@ -6,7 +6,7 @@ Prawn::Fonts::AFM.hide_m17n_warning = true
 module Schedule
   # Printable weekly planning, one page per coach — the thing a coach takes
   # to the floor or pins in the staff room. Same letterhead/palette as
-  # Receipts::ContractPdf so every document Gymly prints looks like it
+  # Receipts::ContractPdf so every document Fitora prints looks like it
   # came from the same product.
   class WeeklyPdf
     INK = "1A1330".freeze
@@ -150,7 +150,7 @@ module Schedule
         pdf.stroke_color "000000"
 
         pdf.fill_color GREY
-        pdf.text_box "Édité avec le logiciel Gymly · #{coach_full_name(coach)}",
+        pdf.text_box "Édité avec le logiciel Fitora · #{coach_full_name(coach)}",
                      at: [ x, 32 ], width: w, align: :center, size: 8
         pdf.text_box "Généré le #{fmt_date(Time.current)} à #{fmt_time(Time.current)}",
                      at: [ x, 20 ], width: w, align: :center, size: 7

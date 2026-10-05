@@ -84,7 +84,7 @@ end
 
 # Signing up is unauthenticated, creates a User and emails the address given,
 # with no ownership check. Unthrottled, a script could mass-create accounts or
-# use Gymly's own mailer to bomb a third party's inbox.
+# use Fitora's own mailer to bomb a third party's inbox.
 Rack::Attack.throttle("register/ip", limit: 5, period: 10.minutes) do |req|
   req.ip if req.post? && req.path == "/api/v1/auth/register"
 end

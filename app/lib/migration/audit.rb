@@ -174,9 +174,9 @@ module Migration
     ORPHAN_CHECKS = {
       "sessions in a room that is gone" =>
         "SELECT COUNT(*) FROM sessions s LEFT JOIN spaces sp ON sp.id = s.space_id WHERE s.space_id IS NOT NULL AND sp.id IS NULL",
-      "payments on a period that is gone" =>
-        "SELECT COUNT(*) FROM payments p LEFT JOIN contract_periods cp ON cp.id = p.contract_period_id " \
-        "WHERE p.contract_period_id IS NOT NULL AND cp.id IS NULL",
+      "payments on a contract that is gone" =>
+        "SELECT COUNT(*) FROM payments p LEFT JOIN contracts c ON c.id = p.contract_id " \
+        "WHERE p.contract_id IS NOT NULL AND c.id IS NULL",
       "contracts on a plan that is gone" =>
         "SELECT COUNT(*) FROM contracts c LEFT JOIN contract_types ct ON ct.id = c.contract_type_id WHERE ct.id IS NULL",
       "contracts for an activity that is gone" =>
@@ -219,8 +219,7 @@ module Migration
         "SELECT COUNT(*) FROM bookings b JOIN sessions s ON s.id = b.session_id " \
         "LEFT JOIN memberships m ON m.client_id = b.client_id AND m.company_id = s.company_id WHERE m.id IS NULL",
       "payments settle their own company's contract" =>
-        "SELECT COUNT(*) FROM payments p JOIN contract_periods cp ON cp.id = p.contract_period_id " \
-        "JOIN contracts c ON c.id = cp.contract_id WHERE c.company_id <> p.company_id",
+        "SELECT COUNT(*) FROM payments p JOIN contracts c ON c.id = p.contract_id WHERE c.company_id <> p.company_id",
       "payments belong to a member of that gym" =>
         "SELECT COUNT(*) FROM payments p LEFT JOIN memberships m ON m.client_id = p.client_id AND m.company_id = p.company_id " \
         "WHERE p.client_id IS NOT NULL AND m.id IS NULL",

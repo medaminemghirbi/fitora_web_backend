@@ -3,15 +3,15 @@ FactoryBot.define do
     client
     # The gym the money is owed to. A payment may only settle its own gym's
     # debt (Payment#payable_belongs_to_this_gym), so when a spec hands in
-    # the period or booking, the gym is theirs; otherwise a period is sold
-    # in this gym below.
+    # the contract or booking, the gym is theirs; otherwise a contract is
+    # sold in this gym below.
     company do
-      if contract_period then contract_period.contract.company
+      if contract then contract.company
       elsif booking then booking.session.company
       else association(:company)
       end
     end
-    contract_period { nil }
+    contract { nil }
     booking { nil }
     amount { 89 }
     currency { "TND" }
@@ -20,10 +20,10 @@ FactoryBot.define do
     paid_at { Time.current }
 
     after(:build) do |payment|
-      next if payment.contract_period || payment.booking
+      next if payment.contract || payment.booking
 
       plan = create(:contract_type, company: payment.company)
-      payment.contract_period = create(:contract, contract_type: plan, client: payment.client, payment_status: :paid).current_period
+      payment.contract = create(:contract, contract_type: plan, client: payment.client, payment_status: :paid)
     end
   end
 end

@@ -10,12 +10,12 @@ module Api
 
       # GET /api/v1/data_exchange/:entity/template
       def template
-        send_data @strategy.template_csv, filename: "gymly-#{params[:entity]}-modele.csv", type: "text/csv"
+        send_data @strategy.template_csv, filename: "fitora-#{params[:entity]}-modele.csv", type: "text/csv"
       end
 
       # GET /api/v1/data_exchange/:entity/export
       def export
-        send_data @strategy.export_csv(current_company), filename: "gymly-#{params[:entity]}-export.csv", type: "text/csv"
+        send_data @strategy.export_csv(current_company), filename: "fitora-#{params[:entity]}-export.csv", type: "text/csv"
       end
 
       # POST /api/v1/data_exchange/:entity/import (multipart, field "file")

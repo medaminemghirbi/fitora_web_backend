@@ -1,7 +1,7 @@
 module Api
   module V1
     # The signed-in user's notification feed — the admin's own (documents/
-    # contracts expiring, employee birthdays) or a Gymly superadmin's
+    # contracts expiring, employee birthdays) or a Fitora superadmin's
     # (system_update, fanned out from Superadmin::AppUpdatesController). Real-time
     # pushes go over NotificationChannel; this is the REST side: history,
     # pagination and read state. Always scoped to current_user, so any role
@@ -51,7 +51,7 @@ module Api
 
       private
 
-      # Admins and Gymly superadmins here; a member reads theirs through
+      # Admins and Fitora superadmins here; a member reads theirs through
       # Api::V1::Me::NotificationsController, which overrides these two.
       def require_notification_recipient!
         render_forbidden unless current_user.admin? || current_user.superadmin?

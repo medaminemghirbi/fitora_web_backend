@@ -1,4 +1,4 @@
-# Gymly — Domain Model
+# Fitora — Domain Model
 
 Concepts, lifecycles and rules. Table shapes live in `DATABASE_DESIGN.md`.
 
@@ -28,12 +28,9 @@ Activity  Space     ContractType   Membership     Payment / Invoice
    │       │             │             │
    │       │             ▼             ▼
    │       │          ┌──────────────────┐
-   │       │          │     Contract     │  a member's subscription
-   │       │          └────────┬─────────┘
-   │       │                   ▼
-   │       │          ┌──────────────────┐
-   │       │          │  ContractPeriod  │ dates · status · balance · payment
-   │       │          └────────┬─────────┘
+   │       │          │     Contract     │  one term: dates · status ·
+   │       │          └────────┬─────────┘  balance · payment
+   │       │                   │  renewed_from ──► the term before it
    ▼       ▼                   │
   ┌──────────────┐             │
   │   Session    │◄────────────┼──────── RecurringSchedule
@@ -73,10 +70,23 @@ The sellable thing: billing period, session count (or `unlimited_bookings`),
 optional `booking_limit`, `priority_booking`. Covers one or more activities
 through `contract_type_activities`, each with its own price.
 
-### Contract — a member's subscription to a plan
-Binds a `Client` to a `ContractType` at a `Company`. Its `activity_id` is
-optional: set for a single-activity subscription, NULL to mean "everything
-this plan covers".
+### Contract — one term of a member's subscription
+Binds a `Client` to a `ContractType` at a `Company` for one term: it starts
+and ends (`starts_at`/`expires_at`), has a `status`, a `remaining_bookings`
+balance, a frozen `base_price`/`discount`/`final_price` and a
+`payment_status`. Its `activity_id` is optional: set for a single-activity
+subscription, NULL to mean "everything this plan covers" (or `pack_id` for
+a pack).
+
+Renewing never stretches a contract: it sells a **new** contract pointing
+back at the one it follows (`renewed_from_id`), on the same formule or on
+another. A member's history is that chain. `remaining_bookings` is NULL for
+unlimited plans and `>= 0` always (DB check).
+
+Until 2026-10-05 the term lived on a separate `ContractPeriod` under a
+dateless `Contract`; migration `20261005120000` folded each period into a
+contract of its own. The `contract_periods` table is still there, unread,
+until a follow-up migration drops it.
 
 ```ruby
 def covers_activity?(activity)
@@ -85,13 +95,6 @@ def covers_activity?(activity)
 end
 ```
 
-### ContractPeriod — the state of that subscription over time
-Deliberately separate from `Contract` so a renewal is a new row, not a
-mutation. Holds `starts_at`/`expires_at`, `status`, `remaining_bookings`,
-`base_price`/`discount`/`final_price`, `payment_status`.
-
-`remaining_bookings` is NULL for unlimited plans and `>= 0` always (DB check).
-
 ### Session — a scheduled occurrence
 Activity + time window + capacity + optional coach + optional space + price.
 Capacity is **snapshotted onto the session**, not read from the activity, so
@@ -99,7 +102,7 @@ changing an activity's capacity never retroactively over- or under-books
 sessions already on the calendar.
 
 ### Booking — a member's seat in a session
-May consume a `ContractPeriod` (decrementing `remaining_bookings`) or be paid
+May consume a `Contract` (decrementing `remaining_bookings`) or be paid
 per-session. Statuses: `held → confirmed → cancelled`, plus `waitlisted`
 when the feature is on.
 
@@ -115,12 +118,13 @@ every staff-side client lookup must go through the company's memberships.
 
 ### Contract
 ```
-created ──► ContractPeriod(active)
+sold ──► Contract(active)
               │
               ├─ bookings consume remaining_bookings
-              ├─ expires_at passes ──► period(expired)
-              ├─ renew  ──► new ContractPeriod(active)
-              └─ cancel ──► period(cancelled); future bookings released
+              ├─ expires_at passes ──► expired
+              ├─ renew  ──► new Contract(active, renewed_from: this),
+              │             queued behind the chain; formule may change
+              └─ cancel ──► cancelled; future bookings released
 ```
 
 ### Booking

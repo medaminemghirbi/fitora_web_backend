@@ -1,4 +1,4 @@
-# Gymly — Permissions & Access Control
+# Fitora — Permissions & Access Control
 
 ## 1. Three independent gates
 
@@ -20,7 +20,7 @@ anyone's permissions.
 
 | Principal | Token claim | Tenant | Notes |
 |---|---|---|---|
-| Superadmin | `user_id`, `User#superadmin?` | **none** | Operates Gymly, not a gym. Reaches company data only through explicit, audited impersonation. |
+| Superadmin | `user_id`, `User#superadmin?` | **none** | Operates Fitora, not a gym. Reaches company data only through explicit, audited impersonation. |
 | Admin | `user_id`, `User#admin?` | `users.active_company_id` | The gym's admin. All capabilities inside their active company, unconditionally. The only one who creates staff logins, assigns roles and edits them. |
 | Staff | `user_id`, `User#staff?` | `staff_members.company_id` | Capabilities come from the assigned `Role`. |
 | Client | `client_id` | via `memberships` | Only `/api/v1/me/*`. |
@@ -69,7 +69,7 @@ deletable only if custom and unassigned.
 | Coach | `coach` | `checkin` (+ read of own schedule and own members, which is namespace-gated, not capability-gated) |
 
 On screen: "Administrateur" and "Super admin". The code says `admin` for
-the gym's admin and `superadmin` for Gymly's operator.
+the gym's admin and `superadmin` for Fitora's operator.
 
 Custom roles are any subset of the catalogue.
 

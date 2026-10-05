@@ -1,7 +1,7 @@
 module Api
   module V1
     module Me
-      # A member leaving Gymly. Their password confirms it; the gyms keep
+      # A member leaving Fitora. Their password confirms it; the gyms keep
       # their books, and nothing on them names this person any more
       # (Client#anonymise!).
       class AccountsController < BaseController

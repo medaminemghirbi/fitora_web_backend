@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_06_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -47,6 +47,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
 
   create_table "activities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "active", default: true, null: false
+    t.uuid "activity_template_id"
     t.integer "capacity", default: 1, null: false
     t.uuid "company_id", null: false
     t.datetime "created_at", null: false
@@ -56,6 +57,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.string "name", null: false
     t.integer "session_format", default: 1, null: false
     t.datetime "updated_at", null: false
+    t.index ["activity_template_id"], name: "index_activities_on_activity_template_id"
     t.index ["company_id"], name: "index_activities_on_company_id"
     t.index ["name"], name: "index_activities_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
   end
@@ -68,6 +70,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.index ["activity_id", "space_id"], name: "index_activity_spaces_on_activity_id_and_space_id", unique: true
     t.index ["activity_id"], name: "index_activity_spaces_on_activity_id"
     t.index ["space_id"], name: "index_activity_spaces_on_space_id"
+  end
+
+  create_table "activity_templates", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.integer "capacity", default: 15, null: false
+    t.datetime "created_at", null: false
+    t.integer "duration", default: 60, null: false
+    t.string "emoji"
+    t.string "family", null: false
+    t.string "key", null: false
+    t.jsonb "names", default: {}, null: false
+    t.integer "position", default: 0, null: false
+    t.integer "session_format", default: 2, null: false
+    t.datetime "updated_at", null: false
+    t.index ["family", "position"], name: "index_activity_templates_on_family_and_position"
+    t.index ["key"], name: "index_activity_templates_on_key", unique: true
   end
 
   create_table "app_updates", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -111,15 +129,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
   create_table "bookings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.decimal "amount", precision: 10, scale: 2, default: "0.0", null: false
     t.uuid "client_id", null: false
+    t.uuid "contract_id"
     t.uuid "contract_period_id"
     t.datetime "created_at", null: false
     t.string "currency", default: "TND", null: false
     t.integer "payment_status", default: 0, null: false
+    t.datetime "reminder_sent_at"
     t.uuid "session_id", null: false
     t.integer "status", default: 0, null: false
+    t.boolean "trial", default: false, null: false
     t.datetime "updated_at", null: false
     t.integer "waitlist_position"
     t.index ["client_id"], name: "index_bookings_on_client_id"
+    t.index ["client_id"], name: "index_bookings_on_client_id_when_trial", where: "trial"
+    t.index ["contract_id"], name: "index_bookings_on_contract_id"
     t.index ["contract_period_id"], name: "index_bookings_on_contract_period_id"
     t.index ["session_id", "client_id"], name: "index_bookings_on_session_id_and_client_id_when_held", unique: true, where: "(status = 0)"
     t.index ["session_id", "status"], name: "index_bookings_on_session_id_and_status"
@@ -174,6 +197,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.string "address"
     t.uuid "admin_id", null: false
     t.string "city"
+    t.text "contract_terms"
     t.string "country"
     t.datetime "created_at", null: false
     t.string "currency", default: "TND", null: false
@@ -186,6 +210,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.string "phone"
     t.jsonb "settings", default: {}, null: false
     t.datetime "setup_dismissed_at"
+    t.string "signatory_name"
     t.string "slug"
     t.string "timezone", default: "Africa/Tunis", null: false
     t.datetime "updated_at", null: false
@@ -196,6 +221,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.index ["slug"], name: "index_companies_on_slug", unique: true
   end
 
+  create_table "contract_invoice_sequences", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "company_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "last_value", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.integer "year", null: false
+    t.index ["company_id", "year"], name: "index_contract_invoice_sequences_on_company_id_and_year", unique: true
+  end
+
   create_table "contract_periods", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.decimal "base_price", precision: 10, scale: 2, null: false
     t.uuid "contract_id", null: false
@@ -203,6 +237,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.decimal "discount", precision: 10, scale: 2, default: "0.0", null: false
     t.datetime "expires_at"
     t.decimal "final_price", precision: 10, scale: 2
+    t.datetime "paused_at"
     t.integer "payment_status", default: 0, null: false
     t.integer "remaining_bookings"
     t.datetime "starts_at"
@@ -225,6 +260,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.index ["contract_type_id"], name: "index_contract_type_activities_on_contract_type_id"
   end
 
+  create_table "contract_type_packs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "contract_type_id", null: false
+    t.datetime "created_at", null: false
+    t.uuid "pack_id", null: false
+    t.decimal "price", precision: 10, scale: 2, null: false
+    t.datetime "updated_at", null: false
+    t.index ["contract_type_id", "pack_id"], name: "index_contract_type_packs_on_contract_type_id_and_pack_id", unique: true
+    t.index ["contract_type_id"], name: "index_contract_type_packs_on_contract_type_id"
+    t.index ["pack_id"], name: "index_contract_type_packs_on_pack_id"
+  end
+
   create_table "contract_types", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.integer "billing_period", default: 0, null: false
@@ -238,24 +284,44 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.integer "session_count"
     t.boolean "unlimited_bookings", default: false, null: false
     t.datetime "updated_at", null: false
+    t.integer "validity_days"
     t.index ["company_id"], name: "index_contract_types_on_company_id"
     t.index ["name"], name: "index_contract_types_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
+    t.check_constraint "validity_days IS NULL OR validity_days > 0", name: "contract_types_validity_days_positive"
   end
 
   create_table "contracts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "activity_id"
     t.boolean "auto_renew", default: false, null: false
+    t.decimal "base_price", precision: 10, scale: 2, default: "0.0", null: false
     t.uuid "client_id", null: false
     t.uuid "company_id", null: false
     t.uuid "contract_type_id", null: false
     t.datetime "created_at", null: false
     t.uuid "created_by_id"
+    t.decimal "discount", precision: 10, scale: 2, default: "0.0", null: false
+    t.datetime "expires_at"
+    t.decimal "final_price", precision: 10, scale: 2
+    t.string "invoice_ref", null: false
+    t.uuid "pack_id"
+    t.datetime "paused_at"
+    t.integer "payment_status", default: 0, null: false
+    t.integer "remaining_bookings"
+    t.uuid "renewed_from_id"
+    t.datetime "starts_at"
+    t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["activity_id"], name: "index_contracts_on_activity_id"
     t.index ["client_id"], name: "index_contracts_on_client_id"
+    t.index ["company_id", "invoice_ref"], name: "index_contracts_on_company_id_and_invoice_ref", unique: true
     t.index ["company_id"], name: "index_contracts_on_company_id"
     t.index ["contract_type_id"], name: "index_contracts_on_contract_type_id"
     t.index ["created_by_id"], name: "index_contracts_on_created_by_id"
+    t.index ["pack_id"], name: "index_contracts_on_pack_id"
+    t.index ["renewed_from_id"], name: "index_contracts_on_renewed_from_id"
+    t.index ["status", "expires_at"], name: "index_contracts_on_status_and_expires_at"
+    t.check_constraint "activity_id IS NULL OR pack_id IS NULL", name: "contracts_activity_or_pack"
+    t.check_constraint "remaining_bookings IS NULL OR remaining_bookings >= 0", name: "contracts_remaining_bookings_not_negative"
   end
 
   create_table "data_imports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -307,9 +373,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.string "emergency_contact_name"
     t.string "emergency_contact_phone"
     t.string "gender"
+    t.text "health_notes"
     t.datetime "joined_at", null: false
     t.text "notes"
     t.datetime "updated_at", null: false
+    t.date "waiver_signed_on"
     t.index ["client_id", "company_id"], name: "index_memberships_on_client_id_and_company_id", unique: true
     t.index ["client_id"], name: "index_memberships_on_client_id"
     t.index ["company_id"], name: "index_memberships_on_company_id"
@@ -336,11 +404,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.index ["subject_type", "subject_id"], name: "index_notifications_on_subject_type_and_subject_id"
   end
 
+  create_table "pack_activities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "activity_id", null: false
+    t.datetime "created_at", null: false
+    t.uuid "pack_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["activity_id"], name: "index_pack_activities_on_activity_id"
+    t.index ["pack_id", "activity_id"], name: "index_pack_activities_on_pack_id_and_activity_id", unique: true
+    t.index ["pack_id"], name: "index_pack_activities_on_pack_id"
+  end
+
+  create_table "packs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.uuid "company_id", null: false
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_packs_on_company_id"
+  end
+
   create_table "payments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.decimal "amount", precision: 10, scale: 2, null: false
     t.uuid "booking_id"
     t.uuid "client_id", null: false
     t.uuid "company_id", null: false
+    t.uuid "contract_id"
     t.uuid "contract_period_id"
     t.datetime "created_at", null: false
     t.uuid "created_by_id"
@@ -354,6 +443,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.index ["client_id"], name: "index_payments_on_client_id"
     t.index ["company_id", "status", "created_at"], name: "index_payments_on_company_id_and_status_and_created_at"
     t.index ["company_id"], name: "index_payments_on_company_id"
+    t.index ["contract_id"], name: "index_payments_on_contract_id"
     t.index ["contract_period_id"], name: "index_payments_on_contract_period_id"
     t.index ["created_by_id"], name: "index_payments_on_created_by_id"
   end
@@ -372,6 +462,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.datetime "created_at", null: false
     t.date "ends_on", null: false
     t.integer "recurrence_type", default: 0, null: false
+    t.uuid "space_id"
     t.time "start_time", null: false
     t.date "starts_on", null: false
     t.datetime "updated_at", null: false
@@ -379,6 +470,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
     t.index ["activity_id"], name: "index_recurring_schedules_on_activity_id"
     t.index ["coach_id"], name: "index_recurring_schedules_on_coach_id"
     t.index ["company_id"], name: "index_recurring_schedules_on_company_id"
+    t.index ["space_id"], name: "index_recurring_schedules_on_space_id"
     t.index ["weekdays"], name: "index_recurring_schedules_on_weekdays", using: :gin
   end
 
@@ -512,6 +604,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "activities", "activity_templates"
   add_foreign_key "activities", "companies"
   add_foreign_key "activity_spaces", "activities"
   add_foreign_key "activity_spaces", "spaces"
@@ -522,17 +615,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
   add_foreign_key "audit_logs", "users"
   add_foreign_key "bookings", "clients"
   add_foreign_key "bookings", "contract_periods"
+  add_foreign_key "bookings", "contracts"
   add_foreign_key "bookings", "sessions"
   add_foreign_key "coaches", "companies"
   add_foreign_key "companies", "users", column: "admin_id"
+  add_foreign_key "contract_invoice_sequences", "companies"
   add_foreign_key "contract_periods", "contracts"
   add_foreign_key "contract_type_activities", "activities"
   add_foreign_key "contract_type_activities", "contract_types"
+  add_foreign_key "contract_type_packs", "contract_types"
+  add_foreign_key "contract_type_packs", "packs"
   add_foreign_key "contract_types", "companies"
   add_foreign_key "contracts", "activities"
   add_foreign_key "contracts", "clients"
   add_foreign_key "contracts", "companies"
   add_foreign_key "contracts", "contract_types"
+  add_foreign_key "contracts", "contracts", column: "renewed_from_id"
+  add_foreign_key "contracts", "packs"
   add_foreign_key "contracts", "users", column: "created_by_id"
   add_foreign_key "data_imports", "companies"
   add_foreign_key "data_imports", "users"
@@ -541,14 +640,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_100000) do
   add_foreign_key "memberships", "clients"
   add_foreign_key "memberships", "companies"
   add_foreign_key "notifications", "companies"
+  add_foreign_key "pack_activities", "activities"
+  add_foreign_key "pack_activities", "packs"
+  add_foreign_key "packs", "companies"
   add_foreign_key "payments", "bookings"
   add_foreign_key "payments", "clients"
   add_foreign_key "payments", "companies"
   add_foreign_key "payments", "contract_periods"
+  add_foreign_key "payments", "contracts"
   add_foreign_key "payments", "users", column: "created_by_id"
   add_foreign_key "recurring_schedules", "activities"
   add_foreign_key "recurring_schedules", "coaches"
   add_foreign_key "recurring_schedules", "companies"
+  add_foreign_key "recurring_schedules", "spaces"
   add_foreign_key "roles", "companies"
   add_foreign_key "sessions", "activities"
   add_foreign_key "sessions", "coaches"

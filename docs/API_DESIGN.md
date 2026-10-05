@@ -1,4 +1,4 @@
-# Gymly — API Design
+# Fitora — API Design
 
 `/api/v1`, JSON, JWT bearer auth. One version; the rewrite happens inside it
 rather than behind a `/v2`, because there is exactly one client and shipping

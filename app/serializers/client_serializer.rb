@@ -24,9 +24,9 @@ class ClientSerializer
     ids = clients.map(&:id)
     contracts = company.contracts.for_serializer
                        .where(client_id: ids)
-                       .joins(:contract_periods).merge(ContractPeriod.currently_active)
-                       .order("contract_periods.expires_at DESC")
-                       .to_a.uniq
+                       .currently_active
+                       .order(Client::CURRENT_CONTRACT_ORDER)
+                       .to_a
     {
       memberships: company.memberships.where(client_id: ids).index_by(&:client_id),
       current_contracts: contracts.group_by(&:client_id).transform_values(&:first)
@@ -62,6 +62,8 @@ class ClientSerializer
       emergency_contact_name: membership&.emergency_contact_name,
       emergency_contact_phone: membership&.emergency_contact_phone,
       notes: membership&.notes,
+      health_notes: membership&.health_notes,
+      waiver_signed_on: membership&.waiver_signed_on,
       # Name, email and phone are the person's once they sign in or train
       # elsewhere; the form locks them rather than letting a save bounce.
       identity_locked: company ? client.identity_shared_beyond?(company) : true,

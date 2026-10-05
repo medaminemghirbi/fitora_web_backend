@@ -1,4 +1,4 @@
-# Singleton row of platform-wide knobs a Gymly superadmin controls. Today just
+# Singleton row of platform-wide knobs a Fitora superadmin controls. Today just
 # the annual-billing discount percentage shown (informationally) on the
 # admin's subscription page.
 class PlatformSetting < ApplicationRecord

@@ -8,6 +8,8 @@ class ActivitySerializer
       id: activity.id,
       name: activity.name,
       emoji: activity.emoji,
+      # The catalogue entry it was copied from; null for one the gym named itself.
+      activity_template_id: activity.activity_template_id,
       description: activity.description,
       session_format: activity.session_format,
       duration: activity.duration,
@@ -21,6 +23,7 @@ class ActivitySerializer
           contract_type_id: row.contract_type_id,
           contract_type_name: row.contract_type.name,
           billing_period: row.contract_type.billing_period,
+          validity_days: row.contract_type.validity_days,
           price: row.price
         }
       }

@@ -44,7 +44,7 @@ module Api
         session = current_company.sessions.find_by(id: params[:session_id])
         return render json: { error: "Session not found" }, status: :not_found if session.nil?
 
-        booking = session.book!(client)
+        booking = session.book!(client, drop_in: truthy?(params[:drop_in]), trial: truthy?(params[:trial]))
         render json: { booking: BookingSerializer.new(booking).as_json }, status: :created
       end
 
@@ -75,13 +75,17 @@ module Api
 
       private
 
+      def truthy?(value)
+        ActiveModel::Type::Boolean.new.cast(value) || false
+      end
+
       # Company only — never narrowed to "this coach's own sessions" the way
       # org_scope is. set_booking uses this, not org_scope: a coach hitting
       # another coach's booking is a BookingPolicy#show? 403 (a role check),
       # not a 404 — only a booking truly outside the company should 404.
       def searched_scope
         # Everything BookingSerializer reads, once for the page.
-        scope = org_scope.preload(:client, session: [ :activity, :company, :coach ], contract_period: { contract: :contract_type })
+        scope = org_scope.preload(:client, session: [ :activity, :company, :coach ], contract: :contract_type)
                          .order(created_at: :desc)
         return scope if params[:q].blank?
 

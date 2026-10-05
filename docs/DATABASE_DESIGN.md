@@ -1,4 +1,4 @@
-# Gymly — Database Design
+# Fitora — Database Design
 
 PostgreSQL. UUID primary keys (`gen_random_uuid()`) throughout. Extensions:
 `pgcrypto`, `pg_trgm` (trigram search), `btree_gist` (exclusion constraints).
@@ -153,7 +153,7 @@ now that it is nullable — the column is read through an already-indexed
 | `no_overlapping_coach_sessions` | sessions | GiST exclusion |
 | `no_overlapping_space_sessions` | sessions | GiST exclusion **(new)** |
 | held booking uniqueness | bookings | partial unique index |
-| `remaining_bookings_not_negative` | contract_periods | check |
+| `contracts_remaining_bookings_not_negative` | contracts | check |
 | `waitlist_position_iff_waitlisted` | bookings | check **(new)** |
 | `spaces_capacity_positive` | spaces | check **(new)** |
 | membership uniqueness | memberships | unique index |

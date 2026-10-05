@@ -8,7 +8,7 @@ RSpec.describe Receipts::ContractPdf do
                                   payment_status: (paid ? :paid : :unpaid))
 
     if paid
-      create(:payment, company: company, client: client, contract_period: contract.current_period,
+      create(:payment, company: company, client: client, contract: contract,
                         amount: contract.final_price, status: :paid)
     end
 

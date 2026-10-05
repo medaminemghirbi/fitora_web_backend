@@ -23,7 +23,6 @@ class Client < ApplicationRecord
 
   has_many :bookings, dependent: :destroy
   has_many :contracts, dependent: :destroy
-  has_many :contract_periods, through: :contracts
   has_many :payments, dependent: :destroy
   # What their own app tells them: a class called off, a seat from the
   # waitlist, a subscription running out.
@@ -62,7 +61,7 @@ class Client < ApplicationRecord
     where("first_name ILIKE :t OR last_name ILIKE :t OR phone ILIKE :t OR email ILIKE :t", t: sanitized)
   }
 
-  # What a person who has left Gymly is called on the gyms' books.
+  # What a person who has left Fitora is called on the gyms' books.
   PLACEHOLDER_FIRST_NAME = "Ancien".freeze
   PLACEHOLDER_LAST_NAME = "membre".freeze
 
@@ -153,7 +152,7 @@ class Client < ApplicationRecord
     end
   end
 
-  # Erases this person from Gymly while keeping the gyms' books whole.
+  # Erases this person from Fitora while keeping the gyms' books whole.
   #
   # Contracts, payments and past bookings stay — a gym's accounts cannot lose
   # rows because a member left — but nothing on them points at a
@@ -202,24 +201,22 @@ class Client < ApplicationRecord
     company ? payments.where(company_id: company.id) : payments
   end
 
-  # The Contract whose current term is still active — status/dates/price
-  # live on ContractPeriod now, so this finds the contract by way of its
-  # latest period rather than a flat column on Contract itself.
+  # The active contract in force — the earliest-starting one still running,
+  # so a renewal queued behind the current term doesn't stand in for it.
   def current_contract(company = nil)
-    contracts_for(company)
-      .joins(:contract_periods).merge(ContractPeriod.currently_active)
-      .order("contract_periods.expires_at DESC").first
+    contracts_for(company).currently_active.order(CURRENT_CONTRACT_ORDER).first
   end
 
-  # What's still owed: unpaid bookings and contract periods, net of
-  # any payments already recorded against them. Not a full accounting
-  # ledger — just enough to flag a client with a balance due.
+  CURRENT_CONTRACT_ORDER = Arel.sql("contracts.starts_at ASC NULLS FIRST, contracts.created_at ASC")
+
+  # What's still owed: unpaid bookings and contracts, net of any payments
+  # already recorded against them. Not a full accounting ledger — just
+  # enough to flag a client with a balance due.
   def outstanding_balance(company = nil)
-    periods = ContractPeriod.where(contract_id: contracts_for(company).select(:id))
-    owed = bookings_for(company).unpaid.sum(:amount) + periods.unpaid.sum(:final_price)
+    owed = bookings_for(company).unpaid.sum(:amount) + contracts_for(company).unpaid.sum(:final_price)
     paid_scope = payments_for(company).paid
     received = paid_scope.where.not(booking_id: nil).sum(:amount) +
-               paid_scope.where.not(contract_period_id: nil).sum(:amount)
+               paid_scope.where.not(contract_id: nil).sum(:amount)
     [ owed - received, 0 ].max
   end
 

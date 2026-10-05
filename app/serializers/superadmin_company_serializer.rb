@@ -36,7 +36,7 @@ class SuperadminCompanySerializer
       # Subscription#issue_invoice! uses — so the button can say it before anyone clicks,
       # and a trial gym's next period is seen to start when the trial ends.
       next_invoice: next_invoice,
-      # What the gym is actually doing with Gymly. An activation decision
+      # What the gym is actually doing with Fitora. An activation decision
       # rests on this far more than on the subscription row: a gym with 180
       # members and a full week of sessions is a different conversation from
       # one that signed up and never came back.

@@ -1,6 +1,6 @@
-# Gymly Backend
+# Fitora Backend
 
-Rails 8 API backend for Gymly — a multi-tenant gym/studio management platform
+Rails 8 API backend for Fitora — a multi-tenant gym/studio management platform
 (clients, bookings, sessions, contracts, staff, payroll, attendance, and
 real-time notifications).
 
@@ -94,7 +94,7 @@ boot this API on port 3100 against its own database, `backend_e2e`, which
 ## Linting & static analysis
 
 ```bash
-bundle exec rubocop                 # style (Omakase Rails style + house cops in lib/rubocop/cop/gymly)
+bundle exec rubocop                 # style (Omakase Rails style + house cops in lib/rubocop/cop/fitora)
 bundle exec brakeman --no-pager     # security static analysis
 bundle exec bundle-audit check --update   # gems with a published advisory
 ```
@@ -142,4 +142,4 @@ constraints), and drops it again.
 - `app/jobs` — Sidekiq background jobs, mostly scheduled scans (see `config/sidekiq_cron.yml`)
 - `app/policies` — authorization
 - `app/serializers` — JSON response shaping
-- `lib/rubocop/cop/gymly` — house Rubocop cops (e.g. tenant-scoping enforcement)
+- `lib/rubocop/cop/fitora` — house Rubocop cops (e.g. tenant-scoping enforcement)

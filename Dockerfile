@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
-# Production image for the Gymly API. Also bakes the Angular SPA into
+# Production image for the Fitora API. Also bakes the Angular SPA into
 # public/ so one container serves both the API and the web app on one origin.
-# Build from the repo root:  docker build -f backend/Dockerfile -t gymly .
+# Build from the repo root:  docker build -f backend/Dockerfile -t fitora .
 
 # ── 1. Build the Angular SPA ────────────────────────────────────────────
 FROM node:20-slim AS spa

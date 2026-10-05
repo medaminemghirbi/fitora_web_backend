@@ -1,4 +1,4 @@
-# Gymly is sold in two plans now — Starter (the whole product, no member
+# Fitora is sold in two plans now — Starter (the whole product, no member
 # app) and Pro (the member app too, and every update) — paid by the month or
 # the year. The plan is the admin's account's, not one gym's: one price
 # however many salles the admin runs. So the salle-count tiers go (1 / 3 /

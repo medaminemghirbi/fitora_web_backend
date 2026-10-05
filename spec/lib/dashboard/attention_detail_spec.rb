@@ -12,7 +12,7 @@ RSpec.describe Dashboard::Statistics, "attention details" do
 
   def contract_with(period_attrs)
     contract = create(:contract, company: company, client: create(:client, company: company), contract_type: plan)
-    contract.current_period.update!(period_attrs)
+    contract.update!(period_attrs)
     contract
   end
 

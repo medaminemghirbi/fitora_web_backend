@@ -48,7 +48,7 @@ RSpec.describe "The confirmed-email gate", type: :request do
     expect(response).to have_http_status(:created)
   end
 
-  it "lets a Gymly superadmin impersonating the admin through" do
+  it "lets a Fitora superadmin impersonating the admin through" do
     create(:company, admin: admin).tap { |c| admin.update!(active_company: c) }
     superadmin = create(:user, :superadmin)
     token = JwtService.encode(admin.id, impersonator_id: superadmin.id)

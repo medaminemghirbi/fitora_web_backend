@@ -17,7 +17,7 @@ RSpec.describe "List pages do not query per row", type: :request do
       contract = create(:contract, client: member, contract_type: plan, activity: activity)
       session = create(:session, activity: activity, starts_at: (i + 1).days.from_now.change(hour: 10))
       create(:booking, client: member, session: session)
-      create(:payment, client: member, contract_period: contract.current_period)
+      create(:payment, client: member, contract: contract)
       create(:coach, company: company)
       create(:staff_member, company: company, role: :moderator)
     end

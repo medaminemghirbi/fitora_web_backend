@@ -83,8 +83,8 @@ RSpec.describe "Api::V1::DataExchange", type: :request do
 
     it "exports the company's payments as CSV" do
       client = create(:client, company: company)
-      period = create(:contract_period, contract: create(:contract, client: client, company: company))
-      create(:payment, client: client, company: company, contract_period: period, amount: 90)
+      contract = create(:contract, client: client, contract_type: create(:contract_type, company: company))
+      create(:payment, client: client, company: company, contract: contract, amount: 90)
 
       get "/api/v1/data_exchange/payments/export", headers: auth_headers(admin)
 
@@ -170,9 +170,9 @@ RSpec.describe "Api::V1::DataExchange", type: :request do
     end
 
     context "payments" do
-      it "records a payment against the client's current contract period" do
+      it "records a payment against the client's current contract" do
         client = create(:client, company: company, email: "amine@example.com")
-        create(:contract_period, contract: create(:contract, client: client, company: company))
+        create(:contract, client: client, contract_type: create(:contract_type, company: company))
         csv = "client_email,amount,payment_method,paid_at\namine@example.com,90,cash,2026-01-01\n"
 
         import!("payments", csv)

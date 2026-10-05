@@ -17,7 +17,7 @@ RSpec.describe "A request runs in the gym's time zone", type: :request do
     end
 
     expect(response).to have_http_status(:created)
-    starts_at = Contract.find(response.parsed_body.dig("contract", "id")).current_period.starts_at
+    starts_at = Contract.find(response.parsed_body.dig("contract", "id")).starts_at
     expect(starts_at.in_time_zone("Africa/Tunis").to_date).to eq(Date.new(2026, 10, 1))
   end
 

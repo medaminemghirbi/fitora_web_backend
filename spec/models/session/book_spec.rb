@@ -30,7 +30,7 @@ RSpec.describe Session, "#book!" do
     booking = session.book!(client)
 
     expect(booking).to be_confirmed
-    expect(booking.contract_period).to be_present
+    expect(booking.contract).to be_present
   end
 
   it "rejects a booking when the client has no covering contract" do
@@ -90,6 +90,6 @@ RSpec.describe Session, "#book!" do
     results = book_concurrently([ [ client, session_a ], [ client, session_b ] ])
 
     expect(results.count(true)).to eq(1)
-    expect(contract.current_period.reload.remaining_bookings).to eq(0)
+    expect(contract.reload.remaining_bookings).to eq(0)
   end
 end

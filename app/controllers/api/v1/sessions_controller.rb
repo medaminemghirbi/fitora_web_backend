@@ -14,7 +14,7 @@ module Api
         scope = scope.where(coach_id: params[:coach_id]) if params[:coach_id].present?
         scope = scope.where(status: params[:status]) if params[:status].present?
         scope = scope.for_date(Date.parse(params[:date])) if params[:date].present?
-        scope = scope.includes(:activity, :company, :coach).order(:starts_at)
+        scope = scope.includes(:activity, :company, :coach, :space).order(:starts_at)
 
         # The calendar asks for a bounded date range and needs every session
         # in it, not a paginated slice — pagination only applies to the
@@ -73,7 +73,11 @@ module Api
         # the session never existed.
         ActiveRecord::Base.transaction do
           session.save!
-          session.book!(client) if client
+          if client
+            booking = params.require(:session).permit(:drop_in, :trial)
+            session.book!(client, drop_in: ActiveModel::Type::Boolean.new.cast(booking[:drop_in]) || false,
+                                  trial: ActiveModel::Type::Boolean.new.cast(booking[:trial]) || false)
+          end
         end
 
         render json: { session: SessionSerializer.new(session).as_json }, status: :created

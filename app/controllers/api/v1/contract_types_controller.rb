@@ -12,7 +12,9 @@ module Api
       def index
         # Was ordered by the flat price, which no longer exists — a plan now
         # has one price per activity. Shortest commitment first, then name.
-        plans = current_company.contract_types.order(:billing_period, :name)
+        plans = current_company.contract_types
+                               .preload({ contract_type_activities: :activity }, { contract_type_packs: { pack: :activities } })
+                               .order(:billing_period, :name)
         render json: { plans: plans.map { |p| ContractTypeSerializer.new(p).as_json } }
       end
 
@@ -54,7 +56,12 @@ module Api
       # isn't offered for them. Ids from another company are ignored, same
       # guard the old activity_ids sync used.
       def sync_associations(plan)
-        return unless params[:activity_prices]
+        sync_activity_prices(plan)
+        sync_pack_prices(plan)
+      end
+
+      def sync_activity_prices(plan)
+        return unless params.key?(:activity_prices)
 
         own_activity_ids = current_company.activities.ids
         rows = Array(params[:activity_prices]).filter_map do |row|
@@ -70,9 +77,31 @@ module Api
         end
       end
 
+      # The same grid for packs. Sent on its own so a caller pricing one
+      # activity doesn't have to restate every pack, and vice versa: a list
+      # that is absent is left alone, an empty one clears the plan's packs.
+      def sync_pack_prices(plan)
+        return unless params.key?(:pack_prices)
+
+        own_pack_ids = current_company.packs.ids
+        rows = Array(params[:pack_prices]).filter_map do |row|
+          pack_id = row[:pack_id].presence
+          next unless own_pack_ids.include?(pack_id)
+
+          { pack_id: pack_id, price: row[:price].to_f }
+        end
+
+        plan.contract_type_packs.where.not(pack_id: rows.map { |r| r[:pack_id] }).destroy_all
+        rows.each do |row|
+          plan.contract_type_packs.find_or_initialize_by(pack_id: row[:pack_id]).update!(price: row[:price])
+        end
+      end
+
+      # Optional, so the pricing grid can send a formule's prices alone. A
+      # create without it still fails, on the name.
       def plan_params
-        params.require(:contract_type).permit(
-          :name, :description, :billing_period, :session_count,
+        params.fetch(:contract_type, {}).permit(
+          :name, :description, :billing_period, :validity_days, :session_count,
           :unlimited_bookings, :booking_limit, :priority_booking, :active, :color
         )
       end

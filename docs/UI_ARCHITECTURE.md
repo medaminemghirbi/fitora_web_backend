@@ -1,4 +1,4 @@
-# Gymly — UI Architecture
+# Fitora — UI Architecture
 
 Angular, standalone components, signals. Full redesign of every screen across
 five shells.
@@ -17,8 +17,8 @@ What the redesign does replace:
 | Item | Problem | Action |
 |---|---|---|
 | `_adminlte.scss` (401 lines) | A superadmin-template skin. The product should not look like SuperadminLTE. | Delete; fold anything still needed into component styles. |
-| `_gymly.scss` (1208 lines) | A global stylesheet doing component work, which is why screens drift. | **Phase 7, not Phase 5.** It is mostly a Bootstrap *override* layer — `.btn`, `.form-control`, `.table`, `.alert`, `.badge` restyled with tokens — and those classes appear across 49 templates. It cannot shrink until the templates stop using them, which is the redesign itself. The "under 250 lines" target holds only *after* that. |
-| `_bootstrap-vars.scss` | Bootstrap coupling on a design system that no longer needs it. | **Done (Phase 7).** Bootstrap removed entirely: its utilities reproduced in `styles/_utilities.scss` against Gymly's tokens, its five unthemed components in `styles/_leftovers.scss`. Stylesheet 420 kB → 171 kB. `scripts/check-css.mjs` fails the build on any class a template uses with no rule behind it. |
+| `_fitora.scss` (1208 lines) | A global stylesheet doing component work, which is why screens drift. | **Phase 7, not Phase 5.** It is mostly a Bootstrap *override* layer — `.btn`, `.form-control`, `.table`, `.alert`, `.badge` restyled with tokens — and those classes appear across 49 templates. It cannot shrink until the templates stop using them, which is the redesign itself. The "under 250 lines" target holds only *after* that. |
+| `_bootstrap-vars.scss` | Bootstrap coupling on a design system that no longer needs it. | **Done (Phase 7).** Bootstrap removed entirely: its utilities reproduced in `styles/_utilities.scss` against Fitora's tokens, its five unthemed components in `styles/_leftovers.scss`. Stylesheet 420 kB → 171 kB. `scripts/check-css.mjs` fails the build on any class a template uses with no rule behind it. |
 | Bootstrap Icons (`bi-*`) in nav blueprints | Icon set chosen by the template, not the brand. | One icon decision, applied everywhere, made before any screen work starts. |
 
 ## 2. Directory structure

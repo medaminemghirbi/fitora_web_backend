@@ -1,7 +1,7 @@
-# Gymly — Current Architecture (Phase 1 analysis)
+# Fitora — Current Architecture (Phase 1 analysis)
 
 Snapshot date: 2026-09-19. Branch `FEATURE` (backend + frontend are two
-separate git repositories under `/home/amine/Documents/gymly/`).
+separate git repositories under `/home/amine/Documents/fitora/`).
 
 This document records what exists today, verified against the code and the
 schema — not what the roadmap wants. Gaps against the target vision are
@@ -46,7 +46,7 @@ Company (the tenant AND the venue — there is no Location/Space table)
  │                       base_price/discount/final_price, payment_status)
  ├─ Membership      (Client ↔ Company join)
  ├─ Payment, Invoice, AuditLog, Notification, SupportTicket
- └─ Subscription    (the gym's own SaaS subscription to Gymly)
+ └─ Subscription    (the gym's own SaaS subscription to Fitora)
 
 Client (GLOBAL person, not company-scoped — own login, own password digest)
  ├─ Membership → Company (many)
@@ -191,7 +191,7 @@ features/    landing, auth, b2b/auth, admin/*, coach/*, member/*, superadmin/*, 
 - `NAV_BLUEPRINT` (`core/configuration/navigation.ts`) is filtered by
   permission and `adminOnly` at runtime by `NavigationService`, so the menu
   is already role-derived rather than hardcoded per role.
-- A design token layer exists: `styles/_tokens.scss`, `_gymly.scss`,
+- A design token layer exists: `styles/_tokens.scss`, `_fitora.scss`,
   `_bootstrap-vars.scss`, plus `_adminlte.scss` and `_marketing.scss`.
 - Every component has a `.spec.ts` alongside it.
 
@@ -244,8 +244,8 @@ features/    landing, auth, b2b/auth, admin/*, coach/*, member/*, superadmin/*, 
 ### 9.3 Security items to verify in Phase 4 (not yet confirmed as bugs)
 
 - **Correction (found during Phase 3):** a custom RuboCop cop,
-  `Gymly/UnscopedTenantQuery`
-  (`lib/rubocop/cop/gymly/unscoped_tenant_query.rb`), already fails the
+  `Fitora/UnscopedTenantQuery`
+  (`lib/rubocop/cop/fitora/unscoped_tenant_query.rb`), already fails the
   build on a bare `Model.find/find_by/where` for any of ~19 tenant-scoped
   models, exempting only `/controllers/api/v1/superadmin/`. It was written after
   a real bug in `BookingsController#set_booking`. So the sweep this section

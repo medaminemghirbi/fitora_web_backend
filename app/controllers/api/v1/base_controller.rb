@@ -97,11 +97,11 @@ module Api
 
         reason = subscription.lock_reason
         if reason == :unpaid && subscription.trial?
-          "Your free trial has ended. Choose Starter or Pro and settle with Gymly to reopen access."
+          "Your free trial has ended. Choose Starter or Pro and settle with Fitora to reopen access."
         elsif reason == :unpaid
-          "The period you paid for has run out. Access closed #{Subscription::GRACE_DAYS} days later; settle with Gymly to reopen it."
+          "The period you paid for has run out. Access closed #{Subscription::GRACE_DAYS} days later; settle with Fitora to reopen it."
         else
-          "Your access has been suspended by Gymly. Get in touch to find out why."
+          "Your access has been suspended by Fitora. Get in touch to find out why."
         end
       end
 
@@ -110,7 +110,7 @@ module Api
       # staff login may be posted to several, so it is whichever one the
       # session switched to (Api::V1::CompaniesController#switch), and for
       # staff only ever one it still works in (User#current_company). Never
-      # confuse either with User#role == "superadmin", the Gymly platform
+      # confuse either with User#role == "superadmin", the Fitora platform
       # operator handled entirely by Api::V1::Superadmin::*.
       def current_company
         @current_company ||= current_user&.current_company
@@ -135,7 +135,7 @@ module Api
       end
 
       # The member app is a Pro feature: a member none of whose gyms is on
-      # Pro (or trying Gymly) has nothing to open.
+      # Pro (or trying Fitora) has nothing to open.
       def require_member_app!
         return if member_companies.any?
 

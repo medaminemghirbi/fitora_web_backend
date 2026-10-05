@@ -34,8 +34,8 @@ module DataExchange
       return "No client found with email #{email}" unless client
 
       # This gym's contract: the same person may be subscribed elsewhere too.
-      period = client.current_contract(company)&.current_period
-      return "#{email} has no active contract to record a payment against" unless period
+      contract = client.current_contract(company)
+      return "#{email} has no active contract to record a payment against" unless contract
 
       method = row["payment_method"].to_s.strip.presence || "cash"
       unless ::Payment::SELECTABLE_METHODS.include?(method)
@@ -44,7 +44,7 @@ module DataExchange
 
       ::Payment.collect!(
         client: client, company: company, created_by: user,
-        amount: row["amount"], payment_method: method, contract_period: period
+        amount: row["amount"], payment_method: method, contract: contract
       )
       nil
     rescue ::ApplicationRecord::Refused => e

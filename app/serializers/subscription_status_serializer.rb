@@ -1,4 +1,4 @@
-# The admin's page about their account's Gymly access: whether it is open
+# The admin's page about their account's Fitora access: whether it is open
 # and until when, every invoice, which plan it is on, what both plans cost in
 # its currency, and where to send the money.
 class SubscriptionStatusSerializer

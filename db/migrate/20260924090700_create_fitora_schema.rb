@@ -1,4 +1,4 @@
-# Gymly's whole schema, created in one step.
+# Fitora's whole schema, created in one step.
 #
 # The history that led here — renames, backfills, columns added and dropped
 # — was squashed before there was any production data to carry: a new
@@ -8,7 +8,7 @@
 # Reference data (subscription prices, platform settings, the superadmin
 # login) is db/seeds.rb's; a company's built-in roles are seeded by the app
 # when it opens (Company.open!).
-class CreateGymlySchema < ActiveRecord::Migration[8.1]
+class CreateFitoraSchema < ActiveRecord::Migration[8.1]
   def change
     enable_extension "btree_gist"
     enable_extension "pg_trgm"

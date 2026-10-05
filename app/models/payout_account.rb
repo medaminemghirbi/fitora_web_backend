@@ -1,4 +1,4 @@
-# Gymly's own bank details — where a gym sends its subscription payment.
+# Fitora's own bank details — where a gym sends its subscription payment.
 #
 # This lives in the environment and nowhere else. It is not a setting, not a
 # row, and deliberately not a column: a RIB in the database is a RIB in every
@@ -22,16 +22,16 @@ class PayoutAccount
   end
 
   # nil when no RIB is configured — the caller then shows the generic
-  # "settle with Gymly" wording rather than an empty bank card.
+  # "settle with Fitora" wording rather than an empty bank card.
   def self.current
-    rib = ENV["GYMLY_RIB"].to_s.strip
+    rib = ENV["FITORA_RIB"].to_s.strip
     return nil if rib.blank?
 
     new(
       rib: rib,
-      bank_name: ENV["GYMLY_BANK_NAME"].to_s.strip.presence,
-      holder: ENV["GYMLY_ACCOUNT_HOLDER"].to_s.strip.presence,
-      swift: ENV["GYMLY_SWIFT"].to_s.strip.presence
+      bank_name: ENV["FITORA_BANK_NAME"].to_s.strip.presence,
+      holder: ENV["FITORA_ACCOUNT_HOLDER"].to_s.strip.presence,
+      swift: ENV["FITORA_SWIFT"].to_s.strip.presence
     )
   end
 

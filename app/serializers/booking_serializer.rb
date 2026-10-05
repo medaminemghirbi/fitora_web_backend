@@ -10,6 +10,8 @@ class BookingSerializer
       amount: booking.amount,
       currency: booking.currency,
       payment_status: booking.payment_status,
+      # A free first session, booked by the desk with no contract.
+      trial: booking.trial,
       created_at: booking.created_at,
       covered_by: covered_by,
       client: {
@@ -37,8 +39,10 @@ class BookingSerializer
   attr_reader :booking
 
   def covered_by
-    return { type: "contract", name: booking.contract_period.contract.contract_type.name } if booking.contract_period
+    return { type: "contract", name: booking.contract.contract_type.name } if booking.contract
+    return { type: "trial" } if booking.trial?
 
-    nil
+    # Booked by the desk with no contract: a single session, paid on its own.
+    { type: "drop_in" }
   end
 end

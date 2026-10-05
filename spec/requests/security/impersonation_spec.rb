@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# Impersonation is the one way a Gymly superadmin reaches a gym's data, and it is
+# Impersonation is the one way a Fitora superadmin reaches a gym's data, and it is
 # deliberately indistinguishable from the admin's own session — that is what
 # makes it useful for support. The accountability has to come from somewhere
 # else: every audited action taken during such a session names the superadmin who
@@ -27,7 +27,7 @@ RSpec.describe "Security: impersonation", type: :request do
     headers = impersonation_headers
 
     post "/api/v1/staff",
-         params: { staff_member: { first_name: "Hire", last_name: "During", email: "hire@gymly.test",
+         params: { staff_member: { first_name: "Hire", last_name: "During", email: "hire@fitora.test",
                                    password: "password123", role: "moderator" } },
          headers: headers
 
@@ -39,7 +39,7 @@ RSpec.describe "Security: impersonation", type: :request do
 
   it "leaves an ordinary admin action unstamped" do
     post "/api/v1/staff",
-         params: { staff_member: { first_name: "Hire", last_name: "Normally", email: "hire2@gymly.test",
+         params: { staff_member: { first_name: "Hire", last_name: "Normally", email: "hire2@fitora.test",
                                    password: "password123", role: "moderator" } },
          headers: auth_headers(admin)
 

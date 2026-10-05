@@ -1,7 +1,7 @@
 module Api
   module V1
     module Superadmin
-      # What Gymly itself looks like this month.
+      # What Fitora itself looks like this month.
       #
       # The superadmin console opened on a list of companies, which answers "who
       # are they" and not "how is the business". This answers the second.
@@ -49,7 +49,7 @@ module Api
             locked: total - open,
             new_this_month: Company.where(created_at: current_month).count,
             new_last_month: Company.where(created_at: last_month).count,
-            # Accounts per plan — what Gymly actually sells.
+            # Accounts per plan — what Fitora actually sells.
             plans: SubscriptionPrice::PLANS.index_with { |plan| Subscription.where(plan: plan).count }
           }
         end
@@ -74,7 +74,7 @@ module Api
           }
         end
 
-        # Gymly's own money, not any gym's takings. Amounts are cents in the
+        # Fitora's own money, not any gym's takings. Amounts are cents in the
         # platform's reference currency; a gym billed in another currency is
         # counted at its own tariff, which is what it will actually be
         # invoiced.

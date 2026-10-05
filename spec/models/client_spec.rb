@@ -128,17 +128,16 @@ RSpec.describe Client do
   end
 
   describe "#current_contract" do
-    it "returns the contract whose current period is active and expires furthest out" do
+    it "returns the active contract in force, not a renewal queued behind it" do
       client = create(:client, company: company)
-      create(:contract, client: client, contract_type: create(:contract_type, company: company),
-                         status: :active, expires_at: 10.days.from_now)
-      far = create(:contract, client: client, contract_type: create(:contract_type, company: company),
-                               status: :active, expires_at: 30.days.from_now)
+      running = create(:contract, client: client, contract_type: create(:contract_type, company: company),
+                                  status: :active, starts_at: 25.days.ago, expires_at: 5.days.from_now)
+      running.renew!
 
-      expect(client.current_contract).to eq(far)
+      expect(client.current_contract).to eq(running)
     end
 
-    it "ignores contracts whose current period isn't active" do
+    it "ignores contracts that aren't active" do
       client = create(:client, company: company)
       create(:contract, client: client, contract_type: create(:contract_type, company: company), status: :cancelled)
 
@@ -147,7 +146,7 @@ RSpec.describe Client do
   end
 
   describe "#outstanding_balance" do
-    it "sums unpaid bookings and contract periods, net of payments already received" do
+    it "sums unpaid bookings and contracts, net of payments already received" do
       client = create(:client, company: company)
       session = create(:session, activity: create(:activity, company: company))
       booking = create(:booking, client: client, session: session, amount: 20, payment_status: :unpaid)
@@ -156,9 +155,9 @@ RSpec.describe Client do
 
       expect(client.outstanding_balance).to eq(20 + 89)
 
-      create(:payment, client: client, company: company, booking: booking, contract_period: nil,
+      create(:payment, client: client, company: company, booking: booking, contract: nil,
                         amount: 20, status: :paid)
-      create(:payment, client: client, company: company, contract_period: contract.contract_periods.first,
+      create(:payment, client: client, company: company, contract: contract,
                         booking: nil, amount: 89, status: :paid)
 
       expect(client.reload.outstanding_balance).to eq(0)
@@ -168,7 +167,7 @@ RSpec.describe Client do
       client = create(:client, company: company)
       session = create(:session, activity: create(:activity, company: company))
       booking = create(:booking, client: client, session: session, amount: 20, payment_status: :unpaid)
-      create(:payment, client: client, company: company, booking: booking, contract_period: nil,
+      create(:payment, client: client, company: company, booking: booking, contract: nil,
                         amount: 50, status: :paid)
 
       expect(client.outstanding_balance).to eq(0)

@@ -28,7 +28,7 @@ RSpec.describe "Api::V1::Notifications", type: :request do
       expect(response).to have_http_status(:forbidden)
     end
 
-    it "also serves a Gymly superadmin's own notifications (e.g. system_update)" do
+    it "also serves a Fitora superadmin's own notifications (e.g. system_update)" do
       superadmin = create(:user, :superadmin)
       create(:notification, company: nil, recipient: superadmin, kind: "system_update", dedup_key: "system_update-1")
 

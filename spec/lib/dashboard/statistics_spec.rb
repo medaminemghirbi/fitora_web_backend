@@ -29,6 +29,7 @@ RSpec.describe Dashboard::Statistics do
     expect(schedule_entry[:id]).to eq(session.id)
     expect(schedule_entry[:activity_name]).to eq("Yoga")
     expect(schedule_entry[:confirmed_count]).to eq(1)
+    expect(schedule_entry[:attended_count]).to eq(1)
     expect(schedule_entry[:capacity]).to eq(5)
     expect(schedule_entry[:status]).to eq("scheduled")
   end
@@ -72,12 +73,12 @@ RSpec.describe Dashboard::Statistics do
     plan = create(:contract_type, company: company)
 
     client_a = create(:client, company: company, first_name: "Amina")
-    period_a = create(:contract, client: client_a, contract_type: plan).current_period
-    create(:payment, company: company, client: client_a, contract_period: period_a, amount: 60, status: :paid)
+    contract_a = create(:contract, client: client_a, contract_type: plan)
+    create(:payment, company: company, client: client_a, contract: contract_a, amount: 60, status: :paid)
 
     client_b = create(:client, company: company, first_name: "Youssef")
-    period_b = create(:contract, client: client_b, contract_type: plan).current_period
-    create(:payment, company: company, client: client_b, contract_period: period_b, amount: 40, status: :paid)
+    contract_b = create(:contract, client: client_b, contract_type: plan)
+    create(:payment, company: company, client: client_b, contract: contract_b, amount: 40, status: :paid)
 
     result = described_class.call(company: company)
 
@@ -97,31 +98,31 @@ RSpec.describe Dashboard::Statistics do
 
       # expires in a fortnight, paid — chase the renewal, not the money
       soon = create(:contract, client: create(:client, company: company), contract_type: plan)
-      soon.current_period.update!(expires_at: 14.days.from_now, payment_status: :paid)
+      soon.update!(expires_at: 14.days.from_now, payment_status: :paid)
 
       # live but never paid
       owing = create(:contract, client: create(:client, company: company), contract_type: plan)
-      owing.current_period.update!(expires_at: 60.days.from_now, payment_status: :unpaid)
+      owing.update!(expires_at: 60.days.from_now, payment_status: :unpaid)
 
       # ran out yesterday and nobody noticed
       lapsed = create(:contract, client: create(:client, company: company), contract_type: plan)
-      lapsed.current_period.update!(expires_at: 1.day.ago, payment_status: :paid)
+      lapsed.update!(expires_at: 1.day.ago, payment_status: :paid)
 
       result = described_class.call(company: company)
 
       expect(row(result, "expiring")[:count]).to eq(1)
       expect(row(result, "unpaid")[:count]).to eq(1)
-      expect(row(result, "unpaid")[:amount]).to eq(owing.current_period.final_price.to_f)
+      expect(row(result, "unpaid")[:amount]).to eq(owing.final_price.to_f)
       expect(row(result, "expired")[:count]).to eq(1)
     end
 
-    it "ignores a superseded period — last season's expiry is history, not work" do
+    it "ignores a renewed term — last season's expiry is history, not work" do
       company = create(:company)
       plan = create(:contract_type, company: company, price: 100)
       contract = create(:contract, client: create(:client, company: company), contract_type: plan)
-      contract.current_period.update!(starts_at: 1.year.ago, expires_at: 6.months.ago, payment_status: :unpaid)
-      create(:contract_period, contract: contract, starts_at: 1.day.ago,
-                                expires_at: 1.year.from_now, status: :active, payment_status: :paid)
+      contract.update!(starts_at: 1.year.ago, expires_at: 6.months.ago, payment_status: :unpaid)
+      create(:contract, client: contract.client, contract_type: plan, renewed_from: contract, starts_at: 1.day.ago,
+                        expires_at: 1.year.from_now, status: :active, payment_status: :paid)
 
       result = described_class.call(company: company)
 
@@ -174,7 +175,7 @@ RSpec.describe Dashboard::Statistics do
       plan = create(:contract_type, company: company, price: 100)
       client = create(:client, company: company)
       contract = create(:contract, client: client, contract_type: plan)
-      contract.current_period.update!(status: :active, payment_status: :unpaid, expires_at: 90.days.from_now)
+      contract.update!(status: :active, payment_status: :unpaid, expires_at: 90.days.from_now)
       create(:payment, client: client, company: company, status: :paid, amount: 100)
 
       result = described_class.call(company: company, revenue: false)
@@ -187,5 +188,24 @@ RSpec.describe Dashboard::Statistics do
       expect(unpaid[:count]).to eq(1)
       expect(unpaid[:amount]).to be_nil
     end
+  end
+
+  it "reads a session already over by who came, not by who is still booked" do
+    company = create(:company)
+    activity = create(:activity, company: company)
+    session = create(:session, activity: activity, company: company,
+                                starts_at: Time.current.beginning_of_day + 1.hour, ends_at: Time.current.beginning_of_day + 2.hours,
+                                capacity: 6, status: :completed)
+    2.times do
+      booking = create(:booking, session: session, client: create(:client, company: company), status: :completed)
+      create(:attendance_record, booking: booking, status: :present)
+    end
+    absent = create(:booking, session: session, client: create(:client, company: company), status: :no_show)
+    create(:attendance_record, booking: absent, status: :no_show)
+
+    entry = described_class.call(company: company)[:todays_schedule].first
+
+    expect(entry[:confirmed_count]).to eq(0)
+    expect(entry[:attended_count]).to eq(2)
   end
 end

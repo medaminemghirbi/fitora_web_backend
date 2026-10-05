@@ -35,7 +35,7 @@ RSpec.describe "Api::V1::SupportTickets", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
     end
 
-    # Payment is arranged off-app: Gymly calls back to set the plan up.
+    # Payment is arranged off-app: Fitora calls back to set the plan up.
     it "refuses a plan request with no number to call back" do
       post "/api/v1/support_tickets",
            params: { subject: "Formule Club", message: "…", kind: "upgrade" },

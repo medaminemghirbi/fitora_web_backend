@@ -129,11 +129,11 @@ RSpec.describe "Api::V1::Contracts", type: :request do
       patch "/api/v1/contracts/#{contract.id}", params: { starts_on: "2026-10-01" }, headers: auth_headers(admin)
 
       expect(response).to have_http_status(:ok)
-      period = contract.current_period.reload
+      contract.reload
       # Dates are the gym's: 1 October starts at midnight in Tunis.
       zone = company.time_zone
-      expect(period.starts_at.in_time_zone(zone).to_date.to_s).to eq("2026-10-01")
-      expect(period.expires_at.in_time_zone(zone).to_date.to_s).to eq("2026-10-31")
+      expect(contract.starts_at.in_time_zone(zone).to_date.to_s).to eq("2026-10-01")
+      expect(contract.expires_at.in_time_zone(zone).to_date.to_s).to eq("2026-10-31")
     end
 
     it "changes the discount while unpaid and recomputes the price" do
@@ -159,21 +159,73 @@ RSpec.describe "Api::V1::Contracts", type: :request do
   end
 
   describe "POST /api/v1/contracts/:id/renew" do
-    it "adds a new period to the same contract, without touching history" do
+    it "sells a new contract chained to the original, without touching history" do
       plan = create(:contract_type, company: company)
       client = create(:client, company: company)
       original = create(:contract, client: client, contract_type: plan, company: company,
                                       starts_at: 30.days.ago, expires_at: 1.day.from_now)
-      original_period = original.current_period
 
       post "/api/v1/contracts/#{original.id}/renew", headers: auth_headers(admin)
 
       expect(response).to have_http_status(:created)
       renewed = response.parsed_body["contract"]
-      expect(renewed["id"]).to eq(original.id)
-      expect(client.contracts.count).to eq(1)
-      expect(original.contract_periods.count).to eq(2)
-      expect(original_period.reload.status).to eq("active") # history untouched
+      expect(renewed["id"]).not_to eq(original.id)
+      expect(renewed["renewed_from_id"]).to eq(original.id)
+      expect(client.contracts.count).to eq(2)
+      expect(original.reload.status).to eq("active") # history untouched
+      expect(original.expires_at.to_date).to eq(1.day.from_now.to_date)
+    end
+
+    it "moves the member onto another formule when one is named" do
+      activity = create(:activity, company: company)
+      monthly = create(:contract_type, company: company, activity: activity, price: 70)
+      yearly = create(:contract_type, company: company, activity: activity, price: 700, billing_period: :yearly)
+      original = create(:contract, client: create(:client, company: company), contract_type: monthly,
+                                   activity: activity, starts_at: 25.days.ago, expires_at: 5.days.from_now)
+
+      post "/api/v1/contracts/#{original.id}/renew",
+           params: { contract_type_id: yearly.id, activity_id: activity.id }, headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:created)
+      renewed = response.parsed_body["contract"]
+      expect(renewed["plan"]["id"]).to eq(yearly.id)
+      expect(renewed["final_price"]).to eq("700.0")
+      expect(renewed["renewed_from_id"]).to eq(original.id)
+    end
+
+    it "refuses a term that ends more than 10 days from now, and says so on the row" do
+      contract = create(:contract, client: create(:client, company: company), contract_type: create(:contract_type, company: company),
+                                   starts_at: 5.days.ago, expires_at: 25.days.from_now)
+
+      get "/api/v1/contracts/#{contract.id}", headers: auth_headers(admin)
+      expect(response.parsed_body["contract"]["renewable"]).to be(false)
+
+      post "/api/v1/contracts/#{contract.id}/renew", headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(contract.reload.renewals).to be_empty
+    end
+
+    it "offers renewing only on the latest term of a chain" do
+      running = create(:contract, client: create(:client, company: company), contract_type: create(:contract_type, company: company),
+                                  starts_at: 25.days.ago, expires_at: 5.days.from_now)
+      get "/api/v1/contracts/#{running.id}", headers: auth_headers(admin)
+      expect(response.parsed_body["contract"]["renewable"]).to be(true)
+
+      running.renew!
+      get "/api/v1/contracts/#{running.id}", headers: auth_headers(admin)
+      expect(response.parsed_body["contract"]["renewable"]).to be(false)
+    end
+
+    it "refuses a formule from another gym" do
+      original = create(:contract, client: create(:client, company: company), contract_type: create(:contract_type, company: company))
+      foreign = create(:contract_type)
+
+      post "/api/v1/contracts/#{original.id}/renew",
+           params: { contract_type_id: foreign.id, activity_id: original.activity_id }, headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:not_found)
+      expect(original.reload.renewals).to be_empty
     end
   end
 
@@ -239,15 +291,15 @@ RSpec.describe "Api::V1::Contracts", type: :request do
       plan = create(:contract_type, company: company)
       client = create(:client, company: company)
       contract = create(:contract, client: client, contract_type: plan, company: company, status: :cancelled)
-      payment = create(:payment, company: company, client: client, contract_period: contract.current_period)
+      payment = create(:payment, company: company, client: client, contract: contract)
       session = create(:session, capacity: 5)
-      booking = create(:booking, client: client, session: session, contract_period: contract.current_period)
+      booking = create(:booking, client: client, session: session, contract: contract)
 
       delete "/api/v1/contracts/#{contract.id}", headers: auth_headers(admin)
 
       expect(response).to have_http_status(:no_content)
-      expect(payment.reload.contract_period_id).to be_nil
-      expect(booking.reload.contract_period_id).to be_nil
+      expect(payment.reload.contract_id).to be_nil
+      expect(booking.reload.contract_id).to be_nil
     end
 
     it "forbids a coach — coaches don't have the contracts capability" do
@@ -269,13 +321,13 @@ RSpec.describe "Api::V1::Contracts", type: :request do
     let(:contract) { create(:contract, client: client, contract_type: plan, company: company) }
 
     it "returns a PDF" do
-      create(:payment, company: company, client: client, contract_period: contract.current_period, amount: 89, status: :paid)
+      create(:payment, company: company, client: client, contract: contract, amount: 89, status: :paid)
 
       get "/api/v1/contracts/#{contract.id}/receipt", headers: auth_headers(admin)
 
       expect(response).to have_http_status(:ok)
       expect(response.content_type).to eq("application/pdf")
-      expect(response.headers["Content-Disposition"]).to include("recu-")
+      expect(response.headers["Content-Disposition"]).to include("facture-", contract.invoice_ref.downcase)
       expect(response.body.byteslice(0, 4)).to eq("%PDF")
     end
 
@@ -339,18 +391,40 @@ RSpec.describe "Api::V1::Contracts", type: :request do
     end
   end
 
+  describe "GET /api/v1/contracts/:id/agreement" do
+    it "returns the contract as a PDF named after its reference" do
+      contract = create(:contract, client: create(:client, company: company), contract_type: create(:contract_type, company: company))
+
+      get "/api/v1/contracts/#{contract.id}/agreement", headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.content_type).to eq("application/pdf")
+      expect(response.headers["Content-Disposition"]).to include(contract.invoice_ref.downcase)
+      expect(response.body.byteslice(0, 4)).to eq("%PDF")
+    end
+
+    it "finds a contract by its reference" do
+      contract = create(:contract, client: create(:client, company: company), contract_type: create(:contract_type, company: company))
+
+      get "/api/v1/contracts", params: { q: contract.invoice_ref }, headers: auth_headers(admin)
+
+      expect(response.parsed_body["contracts"].map { |c| c["id"] }).to eq([ contract.id ])
+      expect(response.parsed_body["contracts"].first["invoice_ref"]).to eq(contract.invoice_ref)
+    end
+  end
+
   describe "GET /api/v1/contracts — the filters the dashboard links to" do
     let(:plan) { create(:contract_type, company: company) }
 
     it "status=expiring returns only live contracts running out within the month" do
       soon = create(:contract, client: create(:client, company: company), contract_type: plan)
-      soon.current_period.update!(status: :active, expires_at: 10.days.from_now)
+      soon.update!(status: :active, expires_at: 10.days.from_now)
 
       later = create(:contract, client: create(:client, company: company), contract_type: plan)
-      later.current_period.update!(status: :active, expires_at: 90.days.from_now)
+      later.update!(status: :active, expires_at: 90.days.from_now)
 
       gone = create(:contract, client: create(:client, company: company), contract_type: plan)
-      gone.current_period.update!(status: :expired, expires_at: 1.day.ago)
+      gone.update!(status: :expired, expires_at: 1.day.ago)
 
       get "/api/v1/contracts", params: { status: "expiring" }, headers: auth_headers(admin)
 
@@ -360,26 +434,26 @@ RSpec.describe "Api::V1::Contracts", type: :request do
 
     it "payment=unpaid returns live contracts nobody has paid for" do
       owing = create(:contract, client: create(:client, company: company), contract_type: plan)
-      owing.current_period.update!(status: :active, payment_status: :unpaid, expires_at: 90.days.from_now)
+      owing.update!(status: :active, payment_status: :unpaid, expires_at: 90.days.from_now)
 
       settled = create(:contract, client: create(:client, company: company), contract_type: plan)
-      settled.current_period.update!(status: :active, payment_status: :paid, expires_at: 90.days.from_now)
+      settled.update!(status: :active, payment_status: :paid, expires_at: 90.days.from_now)
 
       get "/api/v1/contracts", params: { payment: "unpaid" }, headers: auth_headers(admin)
 
       expect(response.parsed_body["contracts"].map { |c| c["id"] }).to eq([ owing.id ])
     end
 
-    # Renewing early adds a period, it never rewrites the running one — so
-    # the list has to stop calling the contract "à renouveler" while still
+    # Renewing early sells the next term, it never rewrites the running one —
+    # so the list has to stop calling the contract "à renouveler" while still
     # asking for the renewal's money.
     it "drops a contract from expiring once a renewal is queued behind it" do
       renewed = create(:contract, client: create(:client, company: company), contract_type: plan)
-      renewed.current_period.update!(status: :active, expires_at: 10.days.from_now, payment_status: :paid)
+      renewed.update!(status: :active, expires_at: 10.days.from_now, payment_status: :paid)
       renewed.renew!
 
       still_running_out = create(:contract, client: create(:client, company: company), contract_type: plan)
-      still_running_out.current_period.update!(status: :active, expires_at: 10.days.from_now)
+      still_running_out.update!(status: :active, expires_at: 10.days.from_now)
 
       get "/api/v1/contracts", params: { status: "expiring" }, headers: auth_headers(admin)
 
@@ -387,23 +461,32 @@ RSpec.describe "Api::V1::Contracts", type: :request do
       expect(response.parsed_body["counts"]["expiring"]).to eq(1)
     end
 
-    it "still asks for the money on a queued renewal, on top of the running term" do
+    it "still asks for the money on a queued renewal — a row of its own" do
       renewed = create(:contract, client: create(:client, company: company), contract_type: plan)
-      renewed.current_period.update!(status: :active, expires_at: 10.days.from_now, payment_status: :paid)
-      renewed.renew!
-      queued = renewed.reload.next_period
+      renewed.update!(status: :active, expires_at: 10.days.from_now, payment_status: :paid)
+      queued = renewed.renew!
 
       get "/api/v1/contracts", params: { payment: "unpaid" }, headers: auth_headers(admin)
 
       body = response.parsed_body
-      expect(body["contracts"].map { |c| c["id"] }).to include(renewed.id)
+      expect(body["contracts"].map { |c| c["id"] }).to eq([ queued.id ])
+      expect(body["contracts"].first["amount_due"]).to eq(queued.final_price.to_f)
+    end
 
-      row = body["contracts"].find { |c| c["id"] == renewed.id }
-      # The badge still describes the term in force — it is paid — while the
-      # money owed and the period to collect point at the renewal.
-      expect(row["payment_status"]).to eq("paid")
-      expect(row["amount_due"]).to eq(queued.final_price.to_f)
-      expect(row["payable_period_id"]).to eq(queued.id)
+    it "lists the running term with its queued renewal, but not a term already taken over" do
+      client = create(:client, company: company)
+      old = create(:contract, client: client, contract_type: plan, starts_at: 60.days.ago, expires_at: 30.days.ago,
+                              status: :expired)
+      running = create(:contract, client: client, contract_type: plan, renewed_from: old,
+                                  starts_at: 30.days.ago, expires_at: 5.days.from_now)
+      queued = running.renew!
+
+      get "/api/v1/contracts", headers: auth_headers(admin)
+
+      body = response.parsed_body
+      expect(body["contracts"].map { |c| c["id"] }).to contain_exactly(running.id, queued.id)
+      row = body["contracts"].find { |c| c["id"] == running.id }
+      expect(row["renewal"]["id"]).to eq(queued.id)
     end
   end
 end

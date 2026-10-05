@@ -45,6 +45,31 @@ RSpec.describe "Api::V1::Companies", type: :request do
       expect(subscription.latest_invoice.amount_cents).to eq(0)
     end
 
+    it "opens with the activities picked from the catalogue and the ones it named itself" do
+      template = create(:activity_template, names: { "fr" => "Pilates Reformer" })
+
+      post "/api/v1/companies",
+           params: { company: { name: "Studio Sousse", timezone: "Africa/Tunis", currency: "TND" },
+                     activity_template_ids: [ template.id ],
+                     custom_activities: [ { name: "Aerial yoga", emoji: "🪂" } ] },
+           headers: auth_headers(fresh_admin)
+
+      expect(response).to have_http_status(:created)
+      activities = Company.find_by(admin: fresh_admin).activities
+      expect(activities.map(&:name)).to contain_exactly("Pilates Reformer", "Aerial yoga")
+      expect(activities.find_by(name: "Pilates Reformer").activity_template).to eq(template)
+    end
+
+    it "does not open at all when a picked activity is not in the catalogue" do
+      post "/api/v1/companies",
+           params: { company: { name: "Studio Sousse", timezone: "Africa/Tunis", currency: "TND" },
+                     activity_template_ids: [ SecureRandom.uuid ] },
+           headers: auth_headers(fresh_admin)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(Company.where(admin: fresh_admin)).to be_empty
+    end
+
     it "becomes the admin's active company immediately" do
       post "/api/v1/companies", params: { company: { name: "Iron Box", timezone: "Africa/Tunis", currency: "TND" } },
                                  headers: auth_headers(fresh_admin)
@@ -329,6 +354,33 @@ RSpec.describe "Api::V1::Companies", type: :request do
       body = response.parsed_body["company"]
       expect(body["slug"]).to eq("power-gym")
       expect(body["primary_color"]).to eq("#ff5500")
+    end
+
+    it "sets the signature contracts are signed with, and who signs them" do
+      patch "/api/v1/company",
+            params: { company: { signature: fixture_file_upload("sample.png", "image/png"), signatory_name: "Sami, gérant",
+                                 contract_terms: "Serviette obligatoire." } },
+            headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body["company"]
+      expect(body["signature_url"]).to be_present
+      expect(body).to include("signatory_name" => "Sami, gérant", "contract_terms" => "Serviette obligatoire.")
+    end
+
+    it "refuses a signature the PDF could not print" do
+      patch "/api/v1/company", params: { company: { signature: fixture_file_upload("sample.txt", "text/plain") } },
+                               headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "takes the signature off" do
+      company.signature.attach(fixture_file_upload("sample.png", "image/png"))
+
+      patch "/api/v1/company", params: { company: { remove_signature: "true" } }, headers: auth_headers(admin)
+
+      expect(response.parsed_body["company"]["signature_url"]).to be_nil
     end
 
     it "uploads a logo" do

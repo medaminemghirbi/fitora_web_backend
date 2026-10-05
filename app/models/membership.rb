@@ -14,7 +14,13 @@ class Membership < ApplicationRecord
   validates :client_id, uniqueness: { scope: :company_id }
 
   # What a gym may write about the person it trains, all on its own copy.
-  PROFILE_FIELDS = %w[date_of_birth gender address emergency_contact_name emergency_contact_phone].freeze
+  # health_notes are the contraindications a coach has to know before an EMS
+  # or reformer session (pacemaker, pregnancy, a back injury);
+  # waiver_signed_on is when the member signed the studio's health
+  # declaration. Both are wiped with the rest on Client#anonymise!.
+  PROFILE_FIELDS = %w[
+    date_of_birth gender address emergency_contact_name emergency_contact_phone health_notes waiver_signed_on
+  ].freeze
 
   scope :active, -> { where(active: true) }
 end

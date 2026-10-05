@@ -7,7 +7,7 @@ class Company < ApplicationRecord
   MAX_LOGO_SIZE = 10.megabytes
 
   # The company's display language — one setting for the whole tenant, set by
-  # a Gymly superadmin (Api::V1::Superadmin::CompaniesController#update_settings). The
+  # a Fitora superadmin (Api::V1::Superadmin::CompaniesController#update_settings). The
   # frontend applies it from the bootstrap payload; there is no per-user
   # language switch inside a company's app.
   LOCALES = %w[fr en ar].freeze
@@ -20,9 +20,16 @@ class Company < ApplicationRecord
   # them separately). slug is unused today; it's reserved so hostname-based
   # tenant resolution can be added later without another migration.
   has_one_attached :logo
+  # The signature printed on every contract the gym hands a member
+  # (Receipts::ContractAgreementPdf), beside signatory_name. PNG or JPEG
+  # only: those are what the PDF can embed.
+  has_one_attached :signature
+  ALLOWED_SIGNATURE_TYPES = %w[image/png image/jpeg].freeze
+  MAX_SIGNATURE_SIZE = 2.megabytes
 
   validate :logo_is_an_image
   validate :logo_is_not_too_large
+  validate :signature_is_printable
 
   has_many :coaches, dependent: :destroy
   has_many :activities, dependent: :destroy
@@ -33,7 +40,8 @@ class Company < ApplicationRecord
   has_many :clients, through: :memberships
   has_many :contract_types, dependent: :destroy
   has_many :contracts, dependent: :destroy
-  has_many :contract_periods, through: :contracts
+  # After contracts: a pack that was sold refuses to go while its contracts remain.
+  has_many :packs, dependent: :destroy
   has_many :data_imports, dependent: :destroy
   has_many :payments, dependent: :destroy
   has_many :staff_members, dependent: :destroy
@@ -74,13 +82,16 @@ class Company < ApplicationRecord
   }
 
 
-  # A salle opening on Gymly: the company and its built-in roles (admin,
+  # A salle opening on Fitora: the company and its built-in roles (admin,
   # moderator, coach — a company can re-permission them or add its own from
   # Settings). The admin's first salle also opens the account, with its free
   # trial; a later salle joins the account it already has — same plan, same
   # price, no second trial. Whether the admin may open another at all is
   # User#may_open_salle?. The admin's session moves onto the new salle.
-  def self.open!(admin:, attributes:)
+  #
+  # What it teaches can come in the same go — templates from the catalogue
+  # and activities it names itself — so a salle never opens half made.
+  def self.open!(admin:, attributes:, activity_template_ids: [], custom_activities: [])
     company = new(attributes)
     company.admin = admin
 
@@ -89,8 +100,34 @@ class Company < ApplicationRecord
       Role.seed_defaults_for(company)
       Subscription.start_trial!(admin, currency: company.currency) if admin.subscription.nil?
       admin.update!(active_company: company)
+      company.adopt_activities!(template_ids: activity_template_ids, custom: custom_activities)
     end
     company
+  end
+
+  # Creates this salle's own activities from catalogue templates (copied,
+  # named in the salle's language — see ActivityTemplate) and from bare
+  # names the catalogue does not have. Returns what it created.
+  #
+  # Adopting a template twice is allowed: "Pilates débutants" and "Pilates
+  # avancés" can both start from the same one.
+  def adopt_activities!(template_ids: [], custom: [])
+    ids = Array(template_ids).map(&:to_s).compact_blank.uniq
+    templates = ActivityTemplate.active.where(id: ids).catalogue_order.to_a
+    raise Refused, "Unknown activity in the catalogue." if templates.size != ids.size
+
+    transaction do
+      created = templates.map { |template| activities.create!(template.activity_attributes_for(self)) }
+      Array(custom).each do |entry|
+        entry = entry.to_h.with_indifferent_access
+        name = entry[:name].to_s.strip
+        next if name.blank?
+
+        created << activities.create!(name: name, emoji: entry[:emoji].presence, session_format: :collective,
+                                      duration: 60, capacity: 15)
+      end
+      created
+    end
   end
 
   # Sets exactly which of the admin's moderators work at this salle.
@@ -299,6 +336,13 @@ class Company < ApplicationRecord
     return unless logo.attached?
 
     errors.add(:logo, "must be smaller than #{MAX_LOGO_SIZE / 1.megabyte}MB") if logo.blob.byte_size > MAX_LOGO_SIZE
+  end
+
+  def signature_is_printable
+    return unless signature.attached?
+
+    errors.add(:signature, "must be a PNG or JPEG image") unless signature.content_type.in?(ALLOWED_SIGNATURE_TYPES)
+    errors.add(:signature, "must be smaller than #{MAX_SIGNATURE_SIZE / 1.megabyte}MB") if signature.blob.byte_size > MAX_SIGNATURE_SIZE
   end
 
   def timezone_is_known

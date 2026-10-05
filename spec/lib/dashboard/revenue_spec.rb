@@ -6,7 +6,7 @@ RSpec.describe Dashboard::Revenue do
     plan = create(:contract_type, company: company)
     contract = create(:contract, client: client, contract_type: plan)
 
-    create(:payment, company: company, client: client, contract_period: contract.current_period,
+    create(:payment, company: company, client: client, contract: contract,
                       amount: amount, paid_at: paid_at, status: :paid)
   end
 

@@ -1,7 +1,7 @@
 module Api
   module V1
     # Forgot-password — unauthenticated by design, same as PairingController.
-    # Never for a platform superadmin (role: :superadmin) — Gymly operators aren't
+    # Never for a platform superadmin (role: :superadmin) — Fitora operators aren't
     # self-service here, same line as everywhere else that special-cases them.
     class PasswordResetsController < ApplicationController
       # POST /api/v1/password_resets — { email: }. Always the same response

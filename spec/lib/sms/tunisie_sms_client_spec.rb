@@ -3,7 +3,7 @@ require "rails_helper"
 RSpec.describe Sms::TunisieSmsClient do
   describe "#send_message" do
     it "sends the SMS and returns the response body on success" do
-      client = described_class.new(api_key: "test-key", sender: "Gymly")
+      client = described_class.new(api_key: "test-key", sender: "Fitora")
       response = instance_double(Net::HTTPOK, is_a?: true, body: "OK")
       captured_uri = nil
       allow(Net::HTTP).to receive(:get_response) do |uri|
@@ -16,12 +16,12 @@ RSpec.describe Sms::TunisieSmsClient do
       expect(result).to eq("OK")
       expect(captured_uri.to_s).to start_with(described_class::BASE_URL)
       expect(captured_uri.query).to include("key=test-key")
-      expect(captured_uri.query).to include("sender=Gymly")
+      expect(captured_uri.query).to include("sender=Fitora")
       expect(captured_uri.query).to include("sms=Hello")
     end
 
     it "raises ConfigurationError when no api key is configured" do
-      client = described_class.new(api_key: nil, sender: "Gymly")
+      client = described_class.new(api_key: nil, sender: "Fitora")
 
       expect do
         client.send_message(mobile: "+21620000000", text: "Hello")
@@ -29,7 +29,7 @@ RSpec.describe Sms::TunisieSmsClient do
     end
 
     it "raises RequestError when the HTTP call does not succeed" do
-      client = described_class.new(api_key: "test-key", sender: "Gymly")
+      client = described_class.new(api_key: "test-key", sender: "Fitora")
       response = instance_double(Net::HTTPBadRequest, is_a?: false, code: "400")
       allow(Net::HTTP).to receive(:get_response).and_return(response)
 

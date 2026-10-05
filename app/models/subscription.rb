@@ -1,8 +1,8 @@
-# An admin's access to Gymly — one per account, covering every salle the
+# An admin's access to Fitora — one per account, covering every salle the
 # admin runs, at one price however many there are.
 #
 # `active` IS the access: every check reads it, nothing computes a date at
-# read time. It is set false by a Gymly superadmin suspending the account,
+# read time. It is set false by a Fitora superadmin suspending the account,
 # and by the nightly sweep once the last invoice's period has run out and the
 # three days of grace with it (Subscription.close_unpaid!). Issuing an
 # invoice sets it back to true.
@@ -10,7 +10,7 @@
 # Everything else about paying lives in the invoices: "paid until" is the
 # latest period_end, arrears are the periods with no invoice. The free trial
 # is the first period, given away: an invoice like any other, flagged
-# `trial` so the account is shown as trying Gymly rather than as already on
+# `trial` so the account is shown as trying Fitora rather than as already on
 # a plan it never chose.
 class Subscription < ApplicationRecord
   belongs_to :admin, class_name: "User", inverse_of: :subscription
@@ -18,8 +18,8 @@ class Subscription < ApplicationRecord
 
   BILLING_PERIODS = { monthly: 0, yearly: 1 }.freeze
 
-  # The two plans Gymly sells. Starter is the whole product for one salle;
-  # Pro adds several salles, the member app, and every update Gymly ships.
+  # The two plans Fitora sells. Starter is the whole product for one salle;
+  # Pro adds several salles, the member app, and every update Fitora ships.
   PLANS = { starter: "starter", pro: "pro" }.freeze
 
   # How long a gym has to settle once the period it paid for has run out,
@@ -43,7 +43,7 @@ class Subscription < ApplicationRecord
 
   # Opens an admin's account with the free trial: the first period given
   # away as an invoice like any other, flagged `trial` so the account reads
-  # as trying Gymly rather than as on a plan it never chose. Access is open
+  # as trying Fitora rather than as on a plan it never chose. Access is open
   # because the trial invoice covers today.
   def self.start_trial!(admin, currency:)
     subscription = admin.create_subscription!(active: true, billing_period: :monthly, plan: :starter)
@@ -215,7 +215,7 @@ class Subscription < ApplicationRecord
   # salle it covers. Returns the invoice.
   #
   # The amount is frozen here, at the tariff of the day. A price change later
-  # must never rewrite a past invoice — the same rule ContractPeriod#base_price
+  # must never rewrite a past invoice — the same rule Contract#base_price
   # follows for a member's own subscription.
   def issue_invoice!(issued_by:, notes: nil)
     period = next_period

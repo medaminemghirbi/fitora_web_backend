@@ -1,7 +1,7 @@
 class Booking < ApplicationRecord
   belongs_to :client
   belongs_to :session
-  belongs_to :contract_period, optional: true
+  belongs_to :contract, optional: true
 
   has_many :payments, dependent: :nullify
   has_one :attendance_record, dependent: :destroy
@@ -51,7 +51,7 @@ class Booking < ApplicationRecord
     transaction do
       update!(status: :cancelled, waitlist_position: nil)
       if held_a_seat
-        contract_period&.contract&.restore_booking!
+        contract&.restore_booking!
         # A seat freed in a session that is still on is the next in line's.
         session.promote_from_waitlist! unless session.cancelled?
       end

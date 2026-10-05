@@ -14,7 +14,10 @@ module Api
       # A coach sees a member's name, how to reach them, and when they last
       # came or next will. Not their subscription, not their balance, not what
       # they have paid — none of that is a coach's business, and it is absent
-      # from the response rather than merely unused by the UI.
+      # from the response rather than merely unused by the UI. Their
+      # contraindications ARE the coach's business: an EMS suit or a reformer
+      # is not something to put someone with a pacemaker or a recent injury
+      # on without knowing.
       class MembersController < BaseController
         before_action :require_company!
         before_action :require_coach!
@@ -24,8 +27,11 @@ module Api
           scope = members.merge(::Client.search(params[:q]))
           total = scope.count
 
+          page = paginate(scope.order(:first_name, :last_name)).to_a
+          @health = current_company.memberships.where(client_id: page.map(&:id)).pluck(:client_id, :health_notes).to_h
+
           render json: {
-            members: paginate(scope.order(:first_name, :last_name)).map { |client| serialize(client) },
+            members: page.map { |client| serialize(client) },
             meta: pagination_meta(scope)
           }
         end
@@ -52,6 +58,7 @@ module Api
             full_name: client.full_name,
             phone: client.phone,
             email: client.email,
+            health_notes: @health[client.id].presence,
             last_seen_at: last_seen_at(client),
             next_session_at: next_session_at(client)
           }

@@ -1,6 +1,6 @@
 # Load testing
 
-k6 scripts that drive real HTTP traffic against a running Gymly backend —
+k6 scripts that drive real HTTP traffic against a running Fitora backend —
 the member booking flow (login → browse classes → book) and the staff/owner
 flow (login → dashboard → client list) — weighted like real traffic
 (members vastly outnumber staff).
@@ -41,7 +41,7 @@ further, or point it elsewhere:
 
 ```bash
 k6 run -e MAX_MEMBER_VUS=2000 -e MAX_STAFF_VUS=100 load_test/k6/scenario.js
-k6 run -e BASE_URL=https://staging.gymly.io load_test/k6/scenario.js
+k6 run -e BASE_URL=https://staging.fitora.io load_test/k6/scenario.js
 ```
 
 k6 prints p95/p99 latency and error rate per endpoint at the end, and the
@@ -76,7 +76,7 @@ What actually closes that gap, in order of what to do first:
 1. **PgBouncer in front of Postgres**, in `transaction` pooling mode. This
    is the load-bearing piece — it lets thousands of app-side connections
    share a small pool of real Postgres connections (dozens, not
-   thousands). Add it as a Kamal accessory between the app and `gymly-db`,
+   thousands). Add it as a Kamal accessory between the app and `fitora-db`,
    point `DATABASE_URL` at it instead of Postgres directly. Transaction
    pooling means `config/database.yml` needs
    `prepared_statements: false` and `advisory_locks: false` added to the

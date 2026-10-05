@@ -239,4 +239,20 @@ RSpec.describe CompanySettings do
       expect(company.working_days).to eq([ 1, 2 ])
     end
   end
+
+  describe "the studio settings" do
+    it "lets the desk take drop-ins, keeps packs out of the catalogue, and reminds a day ahead by app only" do
+      settings = described_class.default
+
+      expect(settings.feature?(:drop_in)).to be(true)
+      expect(settings.feature?(:packs)).to be(false)
+      expect(settings.reminder_hours).to eq(24)
+      expect(settings.reminder_sms?).to be(false)
+    end
+
+    it "clamps the reminder window to what the scan looks ahead" do
+      expect(described_class.new(booking: { reminder_hours: 500 }).reminder_hours).to eq(72)
+      expect(described_class.new(booking: { reminder_hours: -3 }).reminder_hours).to eq(0)
+    end
+  end
 end

@@ -31,6 +31,10 @@ class CompanySerializer
       slug: company.slug,
       primary_color: company.primary_color,
       logo_url: logo_url,
+      # What every contract PDF is signed with (Settings → Image de marque).
+      signature_url: signature_url,
+      signatory_name: company.signatory_name,
+      contract_terms: company.contract_terms,
       # Every feature is included — the key list the admin's subscription
       # page renders as "what's included" (names/descriptions i18n'd
       # client-side as modules.<key>.*).
@@ -43,13 +47,19 @@ class CompanySerializer
       monthly_subscription_cents: company.monthly_subscription_cents,
       annual_subscription_cents: company.annual_subscription_cents,
       annual_discount_percent: company.annual_discount_percent
-      # What the company currently owes Gymly — set by hand by a superadmin,
+      # What the company currently owes Fitora — set by hand by a superadmin,
     }
   end
 
   private
 
   attr_reader :company
+
+  def signature_url
+    return nil unless company.signature.attached?
+
+    Rails.application.routes.url_helpers.rails_blob_path(company.signature, only_path: true)
+  end
 
   def logo_url
     return nil unless company.logo.attached?

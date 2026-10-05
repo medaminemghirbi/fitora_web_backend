@@ -1,4 +1,4 @@
-# The list of what a Gymly subscription includes.
+# The list of what a Fitora subscription includes.
 #
 # Every company has every feature — the whole product comes in one
 # subscription (see SubscriptionPrice). So this is not an activation or

@@ -15,11 +15,11 @@ RSpec.describe Session, "#cancel!" do
   it "cancels every seat on it and gives each member their session back" do
     client, contract = member_with_credits(5)
     booking = session.book!(client)
-    expect(contract.current_period.reload.remaining_bookings).to eq(4)
+    expect(contract.reload.remaining_bookings).to eq(4)
 
     expect(session.cancel!).to eq(1)
     expect(booking.reload).to be_cancelled
-    expect(contract.current_period.reload.remaining_bookings).to eq(5)
+    expect(contract.reload.remaining_bookings).to eq(5)
   end
 
   it "empties the queue without handing out sessions nobody spent" do
@@ -33,7 +33,7 @@ RSpec.describe Session, "#cancel!" do
     session.cancel!
 
     expect(waiting.reload).to be_cancelled
-    expect(queued_contract.current_period.reload.remaining_bookings).to eq(5)
+    expect(queued_contract.reload.remaining_bookings).to eq(5)
   end
 
   it "refuses a session already cancelled" do
@@ -59,6 +59,6 @@ RSpec.describe Booking, "#cancel! from a queue" do
 
     waiting.cancel!
 
-    expect(contract.current_period.reload.remaining_bookings).to eq(3)
+    expect(contract.reload.remaining_bookings).to eq(3)
   end
 end

@@ -1,8 +1,8 @@
-// Gymly load test — realistic mixed traffic against a locally-running
+// Fitora load test — realistic mixed traffic against a locally-running
 // Puma instance. Run `bin/rails load_test:seed` first (see load_test/README.md).
 //
 //   k6 run load_test/k6/scenario.js
-//   k6 run -e BASE_URL=https://staging.gymly.io load_test/k6/scenario.js
+//   k6 run -e BASE_URL=https://staging.fitora.io load_test/k6/scenario.js
 //   k6 run -e MAX_MEMBER_VUS=2000 -e MAX_STAFF_VUS=100 load_test/k6/scenario.js
 //
 // Two scenarios run concurrently, weighted like real traffic: members

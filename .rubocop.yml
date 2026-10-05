@@ -1,9 +1,9 @@
 # Omakase Ruby styling for Rails
 inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 
-# Our own cops — see lib/rubocop/cop/gymly/.
+# Our own cops — see lib/rubocop/cop/fitora/.
 require:
-  - ./lib/rubocop/cop/gymly/unscoped_tenant_query
+  - ./lib/rubocop/cop/fitora/unscoped_tenant_query
 
 # Overwrite or add rules to create your own house style
 #
@@ -11,7 +11,7 @@ require:
 # Layout/SpaceInsideArrayLiteralBrackets:
 #   Enabled: false
 
-Gymly/UnscopedTenantQuery:
+Fitora/UnscopedTenantQuery:
   Enabled: true
   Include:
     - "app/controllers/**/*.rb"

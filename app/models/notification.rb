@@ -2,14 +2,14 @@ class Notification < ApplicationRecord
   # The admin's and the superadmin's kinds, then a member's own.
   KINDS = %w[
     contract_expiring employee_birthday system_update invoice_issued
-    session_cancelled waitlist_promoted subscription_expiring
+    session_cancelled waitlist_promoted subscription_expiring session_reminder
   ].freeze
 
   # Company-scoped events (contract expiry, birthdays) always carry
-  # one; a platform-level event fanned out to Gymly superadmins (system_update)
+  # one; a platform-level event fanned out to Fitora superadmins (system_update)
   # has none — those recipients don't belong to any company.
   belongs_to :company, optional: true
-  # A User (an admin, or a Gymly superadmin) or a Client (a member, on their
+  # A User (an admin, or a Fitora superadmin) or a Client (a member, on their
   # own app).
   belongs_to :recipient, polymorphic: true
   belongs_to :subject, polymorphic: true, optional: true
@@ -41,7 +41,7 @@ class Notification < ApplicationRecord
     else
       # Every company-scoped notification still requires one (a nil company
       # here would silently be a bug in the caller); a platform-level event
-      # aimed at a Gymly superadmin has none by design — see #company.
+      # aimed at a Fitora superadmin has none by design — see #company.
       company = recipient.current_company
       return nil if company.nil? && !recipient.superadmin?
     end

@@ -1,5 +1,5 @@
 # A problem report from the admin's "Contact" tab (modules marketplace
-# page), with optional file/video attachments — reviewed by a Gymly superadmin
+# page), with optional file/video attachments — reviewed by a Fitora superadmin
 # from a cross-company inbox rather than per-company like module requests.
 class SupportTicket < ApplicationRecord
   ALLOWED_ATTACHMENT_TYPES = %w[
@@ -27,7 +27,7 @@ class SupportTicket < ApplicationRecord
   before_validation { self.contact_phone = contact_phone.to_s.strip.presence }
 
   validates :subject, :message, presence: true
-  # Gymly calls back to set a plan up — payment is arranged off-app — so a
+  # Fitora calls back to set a plan up — payment is arranged off-app — so a
   # plan request without a number goes nowhere.
   validates :contact_phone, presence: true, if: :upgrade?
   validate :contact_phone_is_a_number

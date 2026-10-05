@@ -100,11 +100,11 @@ RSpec.describe "Booking rules driven by company settings" do
       company.update!(settings: { booking: { cancellation_hours: 0 } })
       contract = subscribe!
       contract.contract_type.update!(unlimited_bookings: false, session_count: 10)
-      contract.current_period.update!(remaining_bookings: 5)
+      contract.update!(remaining_bookings: 5)
       booked = session_at(4.hours.from_now).book!(member, by: :staff)
 
       expect { booked.cancel!(by: :member) }
-        .to change { contract.current_period.reload.remaining_bookings }.by(1)
+        .to change { contract.reload.remaining_bookings }.by(1)
     end
   end
 
@@ -138,10 +138,10 @@ RSpec.describe "Booking rules driven by company settings" do
       company.update!(settings: { features: { waitlist: true } })
       contract = member.contracts.first
       contract.contract_type.update!(unlimited_bookings: false, session_count: 10)
-      contract.current_period.update!(remaining_bookings: 5)
+      contract.update!(remaining_bookings: 5)
 
       expect { full_session.book!(member, by: :staff) }
-        .not_to change { contract.current_period.reload.remaining_bookings }
+        .not_to change { contract.reload.remaining_bookings }
     end
 
     it "keeps a queue in the order people joined it" do

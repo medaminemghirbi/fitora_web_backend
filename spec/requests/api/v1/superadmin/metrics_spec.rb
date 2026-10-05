@@ -99,7 +99,7 @@ RSpec.describe "Api::V1::Superadmin::Metrics", type: :request do
       expect(activity_json["companies_with_activity"]).to eq(1)
     end
 
-    it "reports Gymly's own money in the reference currency" do
+    it "reports Fitora's own money in the reference currency" do
       company = create(:company)
       create(:invoice, company: company, amount_cents: 12_000, issued_at: Time.current)
 

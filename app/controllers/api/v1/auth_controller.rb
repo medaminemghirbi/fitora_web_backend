@@ -13,7 +13,7 @@ module Api
       # to three fields for someone who has not seen the product yet.
       #
       # The 14 days are all this grants. Carrying on past them still means
-      # asking Gymly to activate the account (SubscriptionController
+      # asking Fitora to activate the account (SubscriptionController
       # #request_upgrade) — signing up moves that conversation after the
       # trial, it does not remove it.
       def register
@@ -34,7 +34,7 @@ module Api
 
       # POST /api/v1/auth/login — one door for both kinds of account.
       #
-      # A platform account first (admin, staff, Gymly superadmin), then a member
+      # A platform account first (admin, staff, Fitora superadmin), then a member
       # whose gym enabled their access. account_type says which came back, so
       # the caller sends them to the right home without asking who they are
       # first. A gym signs itself up (#register); a member never does — their

@@ -11,7 +11,7 @@ RSpec.describe "db/seeds.rb" do
       silence_stream($stdout) { Rails.application.load_seed }
     }.not_to raise_error
 
-    expect(User.find_by(email: "admin@gymly.test")&.role).to eq("superadmin")
+    expect(User.find_by(email: "admin@fitora.test")&.role).to eq("superadmin")
     # Minimal bootstrap only — no demo gym/admin/staff/clients.
     expect(User.where(role: :admin).count).to eq(0)
     expect(Company.count).to eq(0)

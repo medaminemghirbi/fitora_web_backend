@@ -65,7 +65,7 @@ test:
 # still wins over all of this.
 production:
   <<: *default
-  host: <%= ENV.fetch("DB_HOST", "gymly-db") %>
+  host: <%= ENV.fetch("DB_HOST", "fitora-db") %>
   database: <%= ENV.fetch("DB_NAME", "backend_production") %>
-  username: <%= ENV.fetch("DB_USER", "gymly") %>
+  username: <%= ENV.fetch("DB_USER", "fitora") %>
   password: <%= ENV["BACKEND_DATABASE_PASSWORD"] %>

@@ -70,7 +70,7 @@ RSpec.describe "Api::V1::Superadmin::SubscriptionPricing", type: :request do
       expect(SubscriptionPrice.for("EUR", plan: "pro").monthly_cents).to eq(9000)
     end
 
-    it "ignores a plan Gymly does not sell" do
+    it "ignores a plan Fitora does not sell" do
       patch "/api/v1/superadmin/subscription_pricing", params: { currency: "EUR", plans: { "premium" => 1 } }, headers: auth_headers(superadmin)
 
       expect(response).to have_http_status(:ok)

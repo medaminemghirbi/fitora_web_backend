@@ -1,7 +1,7 @@
 module Api
   module V1
     # The "Contact" tab on the modules marketplace page — a problem report
-    # with optional file/video attachments, reviewed by a Gymly superadmin from
+    # with optional file/video attachments, reviewed by a Fitora superadmin from
     # a cross-company inbox (Api::V1::Superadmin::SupportTicketsController).
     class SupportTicketsController < BaseController
       before_action :require_admin!

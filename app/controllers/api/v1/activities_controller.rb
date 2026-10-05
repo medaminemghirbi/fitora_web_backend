@@ -3,7 +3,7 @@ module Api
     class ActivitiesController < BaseController
       before_action :require_company!
       before_action -> { require_schedule_reference_read!(:activities) }, only: [ :index, :show ]
-      before_action -> { require_capability!(:activities) }, only: [ :create, :update, :destroy ]
+      before_action -> { require_capability!(:activities) }, only: [ :create, :adopt, :update, :destroy ]
       before_action :set_activity, only: [ :show, :update, :destroy ]
 
       # GET /api/v1/activities
@@ -26,6 +26,13 @@ module Api
         else
           render_errors(activity)
         end
+      end
+
+      # POST /api/v1/activities/adopt — { activity_template_ids: [] }: adds
+      # activities from the catalogue, each a copy the salle then owns.
+      def adopt
+        created = current_company.adopt_activities!(template_ids: params[:activity_template_ids])
+        render json: { activities: created.map { |a| ActivitySerializer.new(a).as_json } }, status: :created
       end
 
       # PATCH /api/v1/activities/:id

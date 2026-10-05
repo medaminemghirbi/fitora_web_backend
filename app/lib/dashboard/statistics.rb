@@ -15,7 +15,7 @@ module Dashboard
     def call
       {
         total_clients: company.memberships.active.count,
-        active_contracts: company.contract_periods.currently_active.count,
+        active_contracts: company.contracts.in_force.count,
         todays_bookings: todays_bookings.count,
         todays_attendance: todays_attendance_count,
         outstanding_payments: revenue? ? outstanding_payments_total : nil,
@@ -54,16 +54,19 @@ module Dashboard
     def outstanding_payments_total
       unpaid_bookings = Booking.joins(:session).merge(base_sessions_scope)
                                 .unpaid.sum(:amount)
-      unpaid_contracts = company.contract_periods.unpaid.sum(:final_price)
+      unpaid_contracts = company.contracts.unpaid.sum(:final_price)
       unpaid_bookings + unpaid_contracts
     end
 
     def todays_schedule
-      base_sessions_scope
-        .where(starts_at: Time.current.all_day)
-        .order(:starts_at)
-        .includes(:activity, :coach)
-        .map do |session|
+      sessions = base_sessions_scope.where(starts_at: Time.current.all_day).order(:starts_at).includes(:activity, :coach).to_a
+      # Who actually came, for a session already over: its bookings are no
+      # longer `confirmed` by then, so the booked count reads 0. One grouped
+      # query for the whole day.
+      attended = AttendanceRecord.where(status: %i[present late]).joins(:booking)
+                                 .where(bookings: { session_id: sessions.map(&:id) })
+                                 .group("bookings.session_id").count
+      sessions.map do |session|
           {
             id: session.id,
             starts_at: session.starts_at,
@@ -74,6 +77,7 @@ module Dashboard
             activity_emoji: session.activity.emoji,
             coach_name: session.coach&.full_name,
             confirmed_count: session.confirmed_bookings_count,
+            attended_count: attended.fetch(session.id, 0),
             capacity: session.capacity,
             status: session.status
           }
@@ -90,9 +94,13 @@ module Dashboard
     # `key` names the screen the row opens, so adding a row never means
     # touching the frontend's routing.
     def attention
-      expiring = current_periods.expiring_soon(within: 30.days)
-      unpaid = current_periods.active.unpaid
-      expired = current_periods.active.where(expires_at: ...Time.current)
+      # A term already renewed is not running out, nor lapsed: the member's
+      # cover carries on into the next one. An old term superseded by its
+      # renewal is history, so what it owed is left to the client's balance.
+      expiring = company.contracts.expiring_soon(within: 30.days).not_renewed
+      unpaid = company.contracts.not_superseded.active.unpaid
+      # A paused membership is on hold, not lapsed: its end date moves on resume.
+      expired = company.contracts.active.not_renewed.where(paused_at: nil, expires_at: ...Time.current)
 
       [
         { key: "expiring", count: expiring.count, amount: nil, detail: expiring_detail(expiring) },
@@ -128,25 +136,13 @@ module Dashboard
       { kind: "oldest_days", count: days }
     end
 
-    # Only a contract's LATEST period counts: an expired period from last
-    # season is history, not work.
-    def current_periods
-      company.contract_periods.where(<<~SQL.squish)
-        contract_periods.id = (
-          SELECT cp2.id FROM contract_periods cp2
-          WHERE cp2.contract_id = contract_periods.contract_id
-          ORDER BY cp2.starts_at DESC, cp2.created_at DESC LIMIT 1
-        )
-      SQL
-    end
-
     def todays_sessions
       base_sessions_scope.where(starts_at: Time.current.all_day).where.not(status: :cancelled)
     end
 
     def contracts_expiring
-      company.contract_periods.expiring_soon.includes(contract: %i[client contract_type]).order(:expires_at).limit(5).map do |period|
-        { id: period.contract_id, client_name: period.contract.client.full_name, plan_name: period.contract.contract_type.name, expires_at: period.expires_at }
+      company.contracts.expiring_soon.not_renewed.includes(:client, :contract_type).order(:expires_at).limit(5).map do |contract|
+        { id: contract.id, client_name: contract.client.full_name, plan_name: contract.contract_type.name, expires_at: contract.expires_at }
       end
     end
 

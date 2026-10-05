@@ -1,7 +1,7 @@
 module DataExchange
   # CSV import for contracts — deliberately thin: it just resolves the
   # client (by email) and membership plan (by name) already in the company,
-  # then hands off to Contract.sell! so pricing/periods/payment status
+  # then hands off to Contract.sell! so pricing/dates/payment status
   # stay computed the exact same way a manual "new contract" does.
   class Contracts
     HEADERS = %w[client_email contract_type_name activity_name starts_at].freeze

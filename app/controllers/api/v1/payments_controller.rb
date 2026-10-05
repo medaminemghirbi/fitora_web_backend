@@ -31,7 +31,7 @@ module Api
       # so the numbers follow the search box and not the status picked.
       def searched_scope
         scope = current_company.payments.includes(:client, :company, :created_by)
-                                 .preload(contract_period: { contract: :contract_type }, booking: { session: :activity })
+                                 .preload(contract: :contract_type, booking: { session: :activity })
         return scope if params[:q].blank?
 
         t = "%#{params[:q].strip}%"
@@ -68,7 +68,7 @@ module Api
           client: client, company: current_company, created_by: current_user,
           amount: params[:amount], payment_method: params[:payment_method], notes: params[:notes],
           # This gym's only: the person may owe other gyms too.
-          contract_period: find_payable(current_company.contract_periods.where(contracts: { client_id: client.id }), params[:contract_period_id]),
+          contract: find_payable(current_company.contracts.where(client_id: client.id), params[:contract_id]),
           booking: find_payable(client.bookings_for(current_company), params[:booking_id])
         )
 

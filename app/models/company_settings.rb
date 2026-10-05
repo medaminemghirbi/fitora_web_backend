@@ -1,6 +1,6 @@
 # How a company has configured the engine to behave.
 #
-# Gymly runs a boxing club, a Pilates studio, an EMS studio and a gym off
+# Fitora runs a boxing club, a Pilates studio, an EMS studio and a gym off
 # one codebase. The difference between them is not a `type` column and not a
 # branch in the code — it is the values in here. A studio turns rooms on and
 # gives itself a twelve-hour cancellation window; a gym leaves rooms off and
@@ -44,7 +44,17 @@ class CompanySettings
     online_booking: true,
     # Whether a full session takes a queue. Off by default: a waitlist nobody
     # manages is worse than a full session.
-    waitlist: false
+    waitlist: false,
+    # Whether the desk may book someone with no contract into a session — a
+    # trial, or a single session paid on the spot. A studio's first contact
+    # with a member is almost always one of these, so it is on by default.
+    # Members never self-book without a contract either way: nobody is
+    # there to take the money.
+    drop_in: true,
+    # Packs (several activities sold as one). A multi-discipline gym's
+    # tool; a studio teaching one discipline has nothing to bundle, so it
+    # stays out of the catalogue until a company asks for it.
+    packs: false
   }.freeze
 
   # The rules that govern booking, once `features.bookings` is on.
@@ -58,7 +68,14 @@ class CompanySettings
     # Whether failing to turn up still costs a session off the member's
     # balance. Most places say yes; it is the only thing that makes a
     # no-show cost anything.
-    no_show_consumes_session: { default: true }
+    no_show_consumes_session: { default: true },
+    # How many hours before a session the member is reminded of it, on their
+    # app. 0 turns reminders off. A one-to-one slot that nobody turns up to
+    # is an hour the studio cannot sell again, which is why this is on.
+    reminder_hours: { default: 24, min: 0, max: 72 },
+    # Whether that reminder also goes out by SMS. Off by default: every SMS
+    # costs the gym money.
+    reminder_sms: { default: false }
   }.freeze
 
   # When the business is open. Used to lay out the calendar and to stop a
@@ -71,7 +88,7 @@ class CompanySettings
   }.freeze
 
   # White-label appearance. primary_color overrides --color-primary in the
-  # app; nil means "use Gymly's own".
+  # app; nil means "use Fitora's own".
   BRANDING = {
     primary_color: nil
   }.freeze
@@ -142,6 +159,8 @@ class CompanySettings
   def cancellation_hours = @booking[:cancellation_hours]
   def booking_opens_days = @booking[:booking_opens_days]
   def no_show_consumes_session? = @booking[:no_show_consumes_session]
+  def reminder_hours = @booking[:reminder_hours]
+  def reminder_sms? = @booking[:reminder_sms]
 
   # --- Opening hours --------------------------------------------------------
 

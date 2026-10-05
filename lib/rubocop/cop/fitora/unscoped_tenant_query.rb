@@ -2,7 +2,7 @@
 
 module RuboCop
   module Cop
-    module Gymly
+    module Fitora
       # Flags `SomeTenantModel.find(...)` / `.find_by(...)` / `.find_by!(...)`
       # / `.where(...)` called directly on a class known to belong to a
       # Company (directly, or through the location/session/contract chain it
@@ -17,7 +17,7 @@ module RuboCop
       # single missed check on one future endpoint is exactly the failure
       # mode this cop exists to make impossible to merge.
       #
-      # Exempt: app/controllers/api/v1/superadmin/** — Gymly's own console is
+      # Exempt: app/controllers/api/v1/superadmin/** — Fitora's own console is
       # deliberately cross-tenant by design (it manages every company).
       class UnscopedTenantQuery < RuboCop::Cop::Base
         MSG = "%<receiver>s.%<method>s is unscoped — a cross-tenant data leak waiting to happen if nothing else " \
@@ -33,7 +33,7 @@ module RuboCop
         # everyone, unauthenticated, before any company is known).
         TENANT_MODELS = %w[
           Client Booking Session Activity Coach Membership
-          StaffMember Contract ContractPeriod ContractType
+          StaffMember Contract ContractType
           ContractTypeActivity Payment Space ActivitySpace
           AttendanceRecord RecurringSchedule SupportTicket Role
           AuditLog Notification DataImport

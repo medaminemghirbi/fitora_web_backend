@@ -56,8 +56,13 @@ module Receipts
       top = pdf.cursor
       half = pdf.bounds.width / 2
 
+      name_top = top
+      if (logo = PrintableImage.io(company.logo))
+        pdf.image logo, at: [ 0, top ], fit: [ 150, 46 ]
+        name_top = top - 52
+      end
       pdf.fill_color INK
-      pdf.text_box company.name, at: [ 0, top ], width: half, size: 22, style: :bold
+      pdf.text_box company.name, at: [ 0, name_top ], width: half, size: logo ? 14 : 22, style: :bold
       pdf.fill_color "000000"
 
       right = []
@@ -71,7 +76,7 @@ module Receipts
       pdf.text_box right.join("\n"), at: [ half, top ], width: half, align: :right, size: 9, leading: 3
       pdf.fill_color "000000"
 
-      pdf.move_cursor_to top - [ 34, right.size * 13 + 4 ].max
+      pdf.move_cursor_to top - [ logo ? 72 : 34, right.size * 13 + 4 ].max
       pdf.move_down 18
       pdf.stroke_color HAIR
       pdf.stroke_horizontal_rule
@@ -99,9 +104,10 @@ module Receipts
       meta.each do |label, value, strong|
         size = strong ? 12 : 10
         pdf.fill_color strong ? INK : GREY
-        pdf.text_box label, at: [ pdf.bounds.width - 300, y ], width: 210, align: :right, size: size, style: (strong ? :bold : :normal)
+        pdf.text_box label, at: [ pdf.bounds.width - 300, y ], width: 180, align: :right, size: size, style: (strong ? :bold : :normal)
         pdf.fill_color INK
-        pdf.text_box value, at: [ pdf.bounds.width - 80, y ], width: 80, align: :right, size: size, style: (strong ? :bold : :normal)
+        # Wide enough for a whole reference — FAC-2026-0001 in bold.
+        pdf.text_box value, at: [ pdf.bounds.width - 112, y ], width: 112, align: :right, size: size, style: (strong ? :bold : :normal)
         y -= strong ? 24 : 20
       end
       pdf.fill_color "000000"
@@ -112,7 +118,7 @@ module Receipts
     # ---- line items ------------------------------------------------------
     def items_table(pdf)
       head = %w[Description Quantité Unité Prix Montant]
-      billed = contract.current_period&.base_price.to_f
+      billed = contract.base_price.to_f
       rows = [ [ item_description, "1", unit_label, num(billed), num(billed) ] ]
       if contract.discount.to_f.positive?
         rows << [ "Remise", "", "", "", "-#{num(contract.discount)}" ]
@@ -197,9 +203,9 @@ module Receipts
         pdf.stroke_color "000000"
 
         pdf.fill_color GREY
-        pdf.text_box "Édité avec le logiciel Gymly · Tous droits réservés",
+        pdf.text_box "Édité avec le logiciel Fitora · Tous droits réservés",
                      at: [ x, 66 ], width: w, align: :center, size: 8
-        pdf.text_box "Reçu ##{invoice_number} · #{fmt_date(Time.current)}",
+        pdf.text_box "Facture #{invoice_number} · #{fmt_date(Time.current)}",
                      at: [ x, 52 ], width: w, align: :center, size: 7
         pdf.fill_color "000000"
       end
@@ -214,11 +220,13 @@ module Receipts
     end
 
     def unit_label
+      return "#{plan.validity_days} jours" if plan.custom?
+
       UNIT_BY_PERIOD.fetch(plan.billing_period, plan.billing_period)
     end
 
     def invoice_number
-      contract.id.split("-").first.upcase
+      contract.invoice_ref
     end
 
     def invoice_date

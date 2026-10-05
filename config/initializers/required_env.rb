@@ -21,8 +21,8 @@ module RequiredEnv
   RECOMMENDED = {
     "SENTRY_DSN" => "error reporting",
     "SIDEKIQ_WEB_PASSWORD" => "the /sidekiq dashboard",
-    # PayoutAccount falls back to generic "settle with Gymly" wording.
-    "GYMLY_RIB" => "Gymly's bank details on the subscription page"
+    # PayoutAccount falls back to generic "settle with Fitora" wording.
+    "FITORA_RIB" => "Fitora's bank details on the subscription page"
   }.freeze
 
   def self.missing(env = ENV, keys = REQUIRED)

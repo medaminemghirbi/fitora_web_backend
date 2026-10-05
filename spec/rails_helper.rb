@@ -33,7 +33,7 @@ Rails.root.glob('spec/support/**/*.rb').sort_by(&:to_s).each { |f| require f }
 if ENV["OPENAPI"]
   require "rspec/openapi"
   RSpec::OpenAPI.path = "doc/openapi.yaml"
-  RSpec::OpenAPI.title = "Gymly API"
+  RSpec::OpenAPI.title = "Fitora API"
   RSpec::OpenAPI.application_version = "v1"
   RSpec::OpenAPI.enable_example = false
   RSpec::OpenAPI.info = { description: "Generated from spec/requests — do not edit by hand." }

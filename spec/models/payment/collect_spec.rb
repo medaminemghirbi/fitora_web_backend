@@ -13,19 +13,19 @@ RSpec.describe Payment, ".collect!" do
     expect(booking.reload).to be_paid
   end
 
-  it "settles a contract period in full when no amount is given" do
+  it "settles a contract in full when no amount is given" do
     plan = create(:contract_type, price: 100)
     client = create(:client, company: plan.company)
-    period = create(:contract, client: client, contract_type: plan, discount: 10).current_period
+    contract = create(:contract, client: client, contract_type: plan, discount: 10)
     staff = create(:user, :admin)
 
     payment = described_class.collect!(
       client: client, company: plan.company, created_by: staff,
-      amount: nil, payment_method: :cash, contract_period: period
+      amount: nil, payment_method: :cash, contract: contract
     )
 
     expect(payment.amount).to eq(90)
-    expect(period.reload).to be_paid
+    expect(contract.reload).to be_paid
   end
 
   it "rejects a payment linked to nothing at all" do

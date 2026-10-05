@@ -17,7 +17,7 @@ module Api
           )
 
           send_data package.to_stream.read,
-                     filename: "gymly-rapport-#{period.slug}.xlsx",
+                     filename: "fitora-rapport-#{period.slug}.xlsx",
                      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                      disposition: "attachment"
         rescue Reports::Period::InvalidPeriod => e

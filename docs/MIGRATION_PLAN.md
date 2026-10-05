@@ -1,9 +1,9 @@
-# Gymly — Migration Plan
+# Fitora — Migration Plan
 
 > **Superseded (2026-09-24).** Everything below was carried out, rehearsed,
 > and then squashed: there was no production data yet, so `db/migrate` now
 > holds a single migration that creates the schema as it stands
-> (`CreateGymlySchema`). A new database is built from it or from
+> (`CreateFitoraSchema`). A new database is built from it or from
 > `bin/rails db:schema:load`. `Migration::Audit` stays — it checks any
 > restored database's invariants (`backup:restore_check`).
 
@@ -87,9 +87,9 @@ Each phase ends green: suite passing, app running, deployable.
 | **2 — Design** ✅ | this document set | complete |
 | **3 — Backend core** | Migrations 01–09; `CompanySettings`; `Space`/`ActivitySpace` models + services + controllers + serializers; multi-activity `Contract#covers_activity?`; waitlist service; delete `ModuleCatalog` and the role enum | schema at target; new specs green; old specs green or deliberately rewritten |
 | **4 — Authorization & tenancy** | `company_scope`/`find_in_company!`; sweep every controller for unscoped finds; add `spaces` + `settings` capabilities; Rack::Attack; the full `spec/requests/security/` matrix; strong-params audit | every denial test in `PERMISSIONS.md` §7 passes |
-| **5 — Frontend architecture** | Restructure to §2 of `UI_ARCHITECTURE.md`; decompose `_gymly.scss`; delete `_adminlte.scss` and Bootstrap coupling; new primitives (`data-table`, `stat-tile`, `sheet`, …); five shells scaffolded | app runs on the new structure with existing screens ported, not yet redesigned |
+| **5 — Frontend architecture** | Restructure to §2 of `UI_ARCHITECTURE.md`; decompose `_fitora.scss`; delete `_adminlte.scss` and Bootstrap coupling; new primitives (`data-table`, `stat-tile`, `sheet`, …); five shells scaffolded | app runs on the new structure with existing screens ported, not yet redesigned |
 | **6 — Role dashboards** | Admin, desk, coach, member, superadmin dashboards on the new primitives; `/coach/*` and `/me/*` additions | each role's dashboard answers its own question |
-| **7 — UI redesign** | Every remaining screen rebuilt, shell by shell: superadmin → admin → desk → coach → member | no screen still on the old language; `_gymly.scss` under 250 lines |
+| **7 — UI redesign** | Every remaining screen rebuilt, shell by shell: superadmin → admin → desk → coach → member | no screen still on the old language; `_fitora.scss` under 250 lines |
 | **8 — Onboarding & configuration** | Resumable onboarding (`API_DESIGN.md` §4); the company settings UI covering features, booking rules, hours, branding | a new company configures itself with no developer involvement |
 | **9 — Data migration** | Rehearse on a restored dump; run against production; verify row counts and spot-check tenants | counts match; no orphans; a sample company reads correctly in every shell |
 | **10 — Security & testing** | Full security audit against `PERMISSIONS.md` §7 + the brief's §23 list; UX walkthrough of every workflow in the brief's §34 | every listed attack denied; every listed workflow completes |
@@ -121,11 +121,11 @@ to a file.
 # 1. Take a backup and RESTORE it. A backup that has not been restored is
 #    not a backup.
 pg_dump -Fc $PRODUCTION_DB -f prod.dump
-createdb gymly_rehearsal
-pg_restore -d gymly_rehearsal prod.dump
+createdb fitora_rehearsal
+pg_restore -d fitora_rehearsal prod.dump
 
 # 2. Rehearse, against the restored copy — never against production first.
-export DATABASE_URL=postgresql:///gymly_rehearsal
+export DATABASE_URL=postgresql:///fitora_rehearsal
 bin/rails migration:snapshot          # row counts on the OLD schema
 bin/rails db:migrate
 bin/rails migration:verify            # counts + invariants, exits non-zero on failure

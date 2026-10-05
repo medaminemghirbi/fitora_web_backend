@@ -4,7 +4,7 @@ class User < ApplicationRecord
   include EmailVerifiable
   include TokenVersioned
 
-  # A User is always staff: the Gymly-operator ("superadmin", manages every
+  # A User is always staff: the Fitora-operator ("superadmin", manages every
   # company's SaaS subscription via /superadmin) or an in-gym account
   # (admin, or staff — the specific in-gym role lives on StaffMember).
   # Clients are business records the gym creates, never Users — see Client.

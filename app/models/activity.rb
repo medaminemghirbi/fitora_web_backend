@@ -1,9 +1,15 @@
 class Activity < ApplicationRecord
   belongs_to :company
+  # The catalogue entry this activity was copied from, if any (see
+  # ActivityTemplate). Only a record of where it came from: the activity is
+  # the gym's own and never reads anything back from the template.
+  belongs_to :activity_template, optional: true
 
   has_many :sessions, dependent: :destroy
   has_many :contract_type_activities, dependent: :destroy
   has_many :contract_types, through: :contract_type_activities
+  has_many :pack_activities, dependent: :destroy
+  has_many :packs, through: :pack_activities
 
   # The rooms this activity may run in. EMPTY means "anywhere" — see
   # ActivitySpace. Never read `spaces` to answer "where can this run?";

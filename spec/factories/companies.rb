@@ -22,6 +22,11 @@ FactoryBot.define do
       end
     end
 
+    # Packs are opt-in (CompanySettings FEATURES[:packs]).
+    trait :with_packs do
+      after(:create) { |company| company.update!(settings: { features: { packs: true } }) }
+    end
+
     after(:create) do |company|
       Role.seed_defaults_for(company) if company.roles.empty?
       # An admin can run several companies now — current_company resolves

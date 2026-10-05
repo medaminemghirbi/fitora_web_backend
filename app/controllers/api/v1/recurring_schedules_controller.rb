@@ -7,7 +7,7 @@ module Api
 
       # GET /api/v1/recurring_schedules
       def index
-        schedules = current_company.recurring_schedules.includes(:activity, :coach).order(:starts_on)
+        schedules = current_company.recurring_schedules.includes(:activity, :coach, :space).order(:starts_on)
         render json: { recurring_schedules: schedules.map { |s| RecurringScheduleSerializer.new(s).as_json } }
       end
 
@@ -51,7 +51,7 @@ module Api
       end
 
       def schedule_params
-        params.require(:recurring_schedule).permit(:activity_id, :coach_id, :start_time, :recurrence_type, :starts_on, :ends_on, weekdays: [])
+        params.require(:recurring_schedule).permit(:activity_id, :coach_id, :space_id, :start_time, :recurrence_type, :starts_on, :ends_on, weekdays: [])
       end
     end
   end

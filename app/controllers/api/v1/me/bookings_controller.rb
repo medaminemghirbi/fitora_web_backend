@@ -28,7 +28,7 @@ module Api
         def create
           # Bookable at any gym the person has joined whose app they can
           # use — and nowhere else.
-          session = ::Session.where(company_id: member_companies.map(&:id)) # rubocop:disable Gymly/UnscopedTenantQuery
+          session = ::Session.where(company_id: member_companies.map(&:id)) # rubocop:disable Fitora/UnscopedTenantQuery
                               .find_by(id: params[:session_id])
           return render(json: { error: "Session not found" }, status: :not_found) if session.nil?
 

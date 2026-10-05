@@ -1,4 +1,4 @@
-# Gymly — Transformation Progress Log
+# Fitora — Transformation Progress Log
 
 Running record of what is actually done, so any session can resume without
 re-deriving state. Update it at the end of every work block.
@@ -74,7 +74,7 @@ waitlist join, ordering, promotion and resequencing all behind the
   yet); would have broken Phase 6.
 - A flaky spec: `expect(response.body).not_to include("240")` in the member
   profile spec matched random UUIDs. Now asserts on parsed values.
-- `Gymly/UnscopedTenantQuery` cop taught about `Space` and `ActivitySpace`.
+- `Fitora/UnscopedTenantQuery` cop taught about `Space` and `ActivitySpace`.
 
 **Reverted deliberately** — a `Contract` validation requiring its activity to
 be covered by its plan. Correct at the point of sale, but it would make every
@@ -144,7 +144,7 @@ corrected.
 
 ### Corrections to the Phase 1 analysis, found by doing the work
 
-1. A tenant-scoping RuboCop cop (`Gymly/UnscopedTenantQuery`) already
+1. A tenant-scoping RuboCop cop (`Fitora/UnscopedTenantQuery`) already
    existed and fails the build on bare `Model.find` for ~19 models. Phase 1
    called for building one. `Space`/`ActivitySpace` were added to it.
 2. Rack::Attack already existed and was thorough. Phase 1 said there was no
@@ -208,10 +208,10 @@ them:
 
 ### Deliberately deferred
 
-**The `_gymly.scss` decomposition is NOT done, and the "under 250 lines"
+**The `_fitora.scss` decomposition is NOT done, and the "under 250 lines"
 target in `UI_ARCHITECTURE.md` §1 is wrong as written.** That file is mostly a
 Bootstrap *override* layer — it restyles `.btn`, `.form-control`, `.table`,
-`.alert`, `.badge` with Gymly tokens, and those classes are used across 49
+`.alert`, `.badge` with Fitora tokens, and those classes are used across 49
 templates. It cannot be scoped to components or shrunk while the templates
 still use Bootstrap classes. Splitting it cosmetically now and rewriting it
 again in Phase 7 would be wasted work, so it moves to Phase 7, where the
@@ -320,14 +320,14 @@ remembering when writing a new screen's shell.
 
 ### Done — the foundation
 
-**Bootstrap is gone.** `_gymly.scss` had already restyled `.btn`,
+**Bootstrap is gone.** `_fitora.scss` had already restyled `.btn`,
 `.form-control`, `.table`, `.alert`, `.badge` and the tabs to the last rule,
 so the app shipped a 420 kB stylesheet whose every visible declaration it
 then overrode. What was genuinely still coming from the framework was a
 bounded set of layout utilities plus five components nobody had themed —
 which is why those five were the only places the old look still showed.
 
-- `styles/_utilities.scss` — the utilities against Gymly's tokens, keeping
+- `styles/_utilities.scss` — the utilities against Fitora's tokens, keeping
   Bootstrap's class names because 49 templates already say them. Spacing maps
   onto the token scale (`mb-3` is `--space-3`); sides are logical properties,
   so RTL comes free.
@@ -344,7 +344,7 @@ screen. It found **eight classes that had been styling nothing**:
 `fx-dashboard`, `fx-label`, `fx-session-tip-fill`, `is-video`,
 `notif-detail`. Wired up as `npm run check:css`.
 
-**`_gymly.scss` is decomposed** — thirteen partials grouped by concern, split
+**`_fitora.scss` is decomposed** — thirteen partials grouped by concern, split
 by a script against the file's own section markers, asserting every section
 landed somewhere. Compiled output is byte-identical: this moved rules, it did
 not change them.
@@ -582,7 +582,7 @@ code is waiting on that.
 
 ## Phase 10 — Security & testing ✅ (2026-09-24)
 
-Started from an outside audit of the whole backend (the "Gymly backend
+Started from an outside audit of the whole backend (the "Fitora backend
 audit" doc), then fixed everything it listed. Backend **1,278 examples, 0
 failures**, 95.3% lines / 79.6% branches; frontend **1,427 passing**; four
 Playwright journeys passing; rubocop, brakeman, bundler-audit, i18n and css
@@ -643,15 +643,15 @@ end to end before the fix, and now `spec/requests/security/member_identity_spec.
 ### Corrections to the audit
 
 - It said missing bank details would print blanks on invoices. They do not:
-  `PayoutAccount` falls back to "settle with Gymly" on purpose, so
-  `GYMLY_RIB` is only a boot-time warning.
+  `PayoutAccount` falls back to "settle with Fitora" on purpose, so
+  `FITORA_RIB` is only a boot-time warning.
 - It proposed locking the name/phone fields in the member edit form. There
   is no such form — `ClientsService.update` has no caller — so the lock lives
   in the API and the member's own profile.
 
 ### Roles, renamed and merged (2026-09-24)
 
-- **Labels first:** the gym's admin shows as "Administrateur", Gymly's
+- **Labels first:** the gym's admin shows as "Administrateur", Fitora's
   operator as "Super admin".
 - **Réception folded into Modérateur.** New gyms get admin, moderator and
   coach. `FoldTheReceptionIntoTheModerator` deleted an unused Réception role
@@ -669,7 +669,7 @@ The code now says what the product says, in both repos: classes, methods,
 the `User` enum, role keys, API namespaces (`/api/v1/superadmin/*`,
 `/api/v1/admin/*`), Angular routes (`/superadmin`, `/admin`), folders, file
 names, specs, translation keys, comments — the old migrations' included —
-and these docs. Gymly's operator took the name superadmin first, and only
+and these docs. Fitora's operator took the name superadmin first, and only
 then did the gym's role take the name admin, so the word never meant two
 things at once.
 
@@ -679,7 +679,7 @@ notification deep links. `users.role` is an integer enum, so no user row
 moved. Everyone on a Réception role became a moderator — one-way.
 
 A browser holding a session cached before the rename signs in again
-(`gymly_user_v2`) rather than reading its old role names with their new
+(`fitora_user_v2`) rather than reading its old role names with their new
 meanings.
 
 ### One migration (2026-09-24)
@@ -687,14 +687,14 @@ meanings.
 `db/migrate` held 89 migrations: creates, renames, backfills, columns added
 and dropped, data moved between roles. None of it had a production database
 to carry, so the history is squashed into one migration that only creates —
-`CreateGymlySchema`, generated from `schema.rb` and checked by running it
+`CreateFitoraSchema`, generated from `schema.rb` and checked by running it
 on an empty database: the schema it dumps is identical, and it rolls back to
 nothing. It keeps the last version the old history reached, so a database
 built from that history counts it as run.
 
 ## Two plans, one account, several salles (2026-09-25)
 
-Gymly no longer sells salle-count tiers (Solo 1 / Club 3 / Réseau unlimited).
+Fitora no longer sells salle-count tiers (Solo 1 / Club 3 / Réseau unlimited).
 It sells two plans, per **admin account**, monthly or yearly:
 
 - **Starter** — the whole product, without the member app.
@@ -817,3 +817,138 @@ beyond the few that called a service directly.
 Backend **1,311 examples, 0 failures** (5 fewer: the dead `CheckIns::Create`
 and two plain-ActiveRecord session specs), coverage 95.4% as before, rubocop
 clean, OpenAPI regenerated.
+
+## Packs, and the catalogue rebuilt around them (2026-10-02)
+
+A gym teaching several disciplines sells them together — "Boxe +
+Musculation" at one price. That is a **pack**.
+
+- **Model.** `packs` (name, description, active) + `pack_activities` (≥ 2,
+  same company — validated). A pack has no price or duration of its own: it
+  is priced **per formule**, like an activity, on `contract_type_packs`
+  (mirrors `contract_type_activities`). The formule still decides how long a
+  purchase lasts and how many sessions it buys.
+- **Selling.** `contracts.pack_id`, with a check constraint that a contract
+  names an activity *or* a pack, never both (neither = all-access, as
+  before). `Contract.sell!(…, pack:)` prices from
+  `ContractType#price_for_pack`; `#renew!` takes today's pack price.
+  `#covers_activity?` for a pack contract = the formule still sells the pack
+  AND the pack holds the activity (a formule may sell only packs).
+  `#activity_label` → "Duo (Boxe, Musculation)", so receipts, CSV export and
+  the member app needed nothing.
+- **API.** `GET/POST/PATCH/DELETE /packs` (DELETE = deactivate; read needs
+  `contracts`, write `contract_types`). Formules take `pack_prices` beside
+  `activity_prices`; each list is synced only when sent, and the
+  `contract_type` body is now optional so the grid can send prices alone.
+  `POST /contracts` and `POST /clients` (`subscription`) take `pack_id` in
+  place of `activity_id`. The members-list activity filter finds pack
+  holders too.
+- **Frontend — `/admin/catalogue`.** The two-column formules|activités page
+  (two empty states, a "Nouveau contrat" button twice, one of them greyed
+  out with no reason) became tabs — **Tarifs · Activités · Formules ·
+  Packs**, in `?tab=` — over one `CatalogueStore` (provided by the page) so
+  counts and prices agree everywhere. "Tarifs" is an inline-editable grid
+  (rows = activities then packs, columns = active formules, blank = not
+  sold); until there is an activity and a formule it is a 3-step setup
+  guide instead. Also fixed: the formule name field was labelled with
+  `coaches.first_name`, and the new-member wizard kept the previous
+  member's formule when reopened. Sale forms (client profile, new-member
+  wizard) list a formule's packs under its activities.
+
+Backend **1,351 examples, 0 failures**, rubocop clean, OpenAPI regenerated;
+frontend **1,512 passing**, lint/i18n/css clean; Playwright smoke 5/5 (new
+journey: build a pack → price it in the grid → sell it to a new member).
+
+## Fit for the private studio (2026-10-05)
+
+A product review against EMS, Pilates, yoga, personal-training and small
+fitness studios found the engine already right (session formats, rooms,
+session counts, booking rules) and five gaps in what sits on it. All five
+are closed; nothing new beyond them.
+
+- **One-to-one slots members book themselves.** The calendar required a
+  member on every individual session, so an EMS or PT slot could only ever
+  be booked by the desk. The member is now optional: an empty slot is open,
+  repeats weekly like a class (`recurring_schedules.space_id` puts every
+  slot in its cabin), and shows in the member app as "Séance individuelle".
+  `/me/sessions` hides a one-to-one slot someone else has taken. The
+  calendar now offers rooms at all (it never did), marks open slots, and
+  shows the room on the block.
+- **Trials and single sessions.** `Session#book!(…, drop_in:, trial:)` — the
+  desk can book someone with no contract: a single session owed at the
+  session's price (settled through `Payment.collect!` like any booking), or
+  a free trial, one per person per gym (`bookings.trial`). Staff only,
+  behind `features.drop_in` (on by default), and only when no contract
+  already covers the session. `covered_by` says `trial` / `drop_in`.
+- **Reminders.** `Notifications::SendSessionRemindersJob` every 15 min:
+  `booking.reminder_hours` (default 24, 0 = off, max 72) before a session,
+  on the member's app, plus SMS when `booking.reminder_sms` is on (off by
+  default — it costs). Once per booking (`bookings.reminder_sent_at`); a
+  booking made inside the window is not reminded; an SMS failure is logged,
+  never retried.
+- **Carnets and pauses.** `billing_period: custom` + `validity_days` (1–730)
+  for "10 séances valables 8 semaines". `Contract#pause!` / `#resume!`
+  (`contract_periods.paused_at`): nothing books while paused, resuming
+  pushes `expires_at` — and any queued renewal — back by the time held.
+  Paused periods are not "expiring" or "expired" on the dashboard; the
+  contracts list has a `paused` filter.
+- **Health file.** `memberships.health_notes` + `waiver_signed_on`, on the
+  gym's own copy, wiped by `Client#anonymise!`. On the member profile (a
+  card above the timeline, amber when there is something to know, red when
+  no declaration is signed) and in `/coach/members` — the one personal
+  detail a coach does need.
+- **Packs are opt-in** (`features.packs`, off): the catalogue, price grid
+  and sale forms say nothing about them until a gym turns them on.
+  `GET /packs` answers `[]` and writes 404 when off.
+- **Landing** repositioned on private studios, and stripped of what the
+  product does not do (payroll, document library, badge check-in,
+  instalment plans).
+
+Fixed along the way: a room double-booking raised the raw exclusion
+violation (a 500, and it aborted a weekly series' generation); it is now a
+form error like the coach overlap.
+
+Backend **1,401 examples, 0 failures** (CI mode, Bullet on), rubocop clean,
+OpenAPI regenerated; frontend **1,542 passing**, lint/i18n/css clean, build
+clean.
+
+## 2026-10-05 — A contract is one term (ContractPeriod folded in)
+
+`Contract` used to have no dates: it held `ContractPeriod`s that carried
+everything (dates, price, payment, remaining sessions), and renewing took
+two paths — a new period on the same contract for the same formule, a new
+unlinked contract for another one. Now each period is a contract:
+
+- **Schema** (`20261005120000_flatten_contract_periods_into_contracts`):
+  `contracts` gains status, payment_status, starts_at, expires_at,
+  paused_at, remaining_bookings, base_price, discount, final_price and
+  `renewed_from_id`; `bookings.contract_id` and `payments.contract_id`
+  replace `contract_period_id`. A contract's first period folds into the
+  row; each later one becomes a contract (same id as the period) chained to
+  the one before. **Non-destructive**: `contract_periods` and the old
+  `*.contract_period_id` columns are left in place, unread — a follow-up
+  migration drops them once checked against production data.
+- **Model**: `Contract.sell!` returns the contract; `#renew!(contract_type:,
+  activity:, pack:)` sells a new contract linked back, queued behind the
+  chain's tail, at today's tariff (same formule falls back to the last
+  price; another formule must be priced, and drops the discount).
+  `#update_term!` replaces `#update_current_period!`. Scopes: `in_force`,
+  `not_renewed` (nothing non-cancelled follows it), `not_superseded` (not
+  yet taken over by a started renewal). The (client, plan, activity)
+  uniqueness is gone — the same formule sold twice is two contracts.
+- **API**: `POST /contracts/:id/renew` takes optional `contract_type_id` +
+  `activity_id`/`pack_id` and returns the NEW contract;
+  `POST /payments` takes `contract_id`. ContractSerializer drops
+  `current_period_id`, `payable_period_id`, `upcoming_periods`; adds
+  `renewed_from_id` and `renewal` (the next term's summary).
+- **Contracts list** shows `not_superseded` only: the term in force and its
+  queued renewal, each a row with its own Encaisser. History stays on the
+  client profile. Expiring/expired work and expiry notifications skip
+  renewed contracts.
+- **Frontend**: the list's "Renouveler" opens a dialog on the current
+  formule, where the desk can pick another; the client profile's payment
+  modal now offers owed contracts, not only bookings.
+
+Backend **1,393 examples, 0 failures** (CI mode, Bullet on), rubocop clean,
+OpenAPI regenerated; frontend **1,542 passing**, build clean, i18n clean.
+

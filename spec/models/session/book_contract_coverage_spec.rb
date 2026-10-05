@@ -9,7 +9,7 @@ RSpec.describe Session, "#book! — contract coverage" do
     booking = session.book!(contract.client)
 
     expect(booking).to be_confirmed
-    expect(booking.contract_period.contract).to eq(contract)
+    expect(booking.contract).to eq(contract)
     expect(booking).to be_paid
     expect(booking.amount).to eq(0)
     expect(contract.reload.remaining_bookings).to eq(2)

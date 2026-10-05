@@ -74,7 +74,17 @@ RSpec.describe "Api::V1::Coach::Members", type: :request do
       get "/api/v1/coach/members", headers: auth_headers(coach_staff.user)
 
       keys = response.parsed_body["members"].first.keys
-      expect(keys).to contain_exactly("id", "full_name", "phone", "email", "last_seen_at", "next_session_at")
+      expect(keys).to contain_exactly("id", "full_name", "phone", "email", "health_notes", "last_seen_at", "next_session_at")
+    end
+
+    it "tells a coach a member's contraindications, and nothing from another gym's file" do
+      mine = create(:client, company: company)
+      mine.membership_for(company).update!(health_notes: "Pacemaker — no EMS")
+      books!(mine, session_for(coach))
+
+      get "/api/v1/coach/members", headers: auth_headers(coach_staff.user)
+
+      expect(response.parsed_body["members"].first["health_notes"]).to eq("Pacemaker — no EMS")
     end
 
     it "searches by name" do

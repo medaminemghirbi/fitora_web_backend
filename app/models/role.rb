@@ -14,7 +14,7 @@ class Role < ApplicationRecord
   SYSTEM_KEYS = %w[admin moderator coach].freeze
 
   DEFAULTS = {
-    # The gym's admin, "Administrateur" on screen. (Gymly's own operator is
+    # The gym's admin, "Administrateur" on screen. (Fitora's own operator is
     # the superadmin, User#superadmin?, and has no role here.)
     "admin" => {
       name: "Administrateur",

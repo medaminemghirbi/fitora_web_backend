@@ -38,7 +38,7 @@ namespace :load_test do
     companies_count.times do |i|
       admin = User.create!(
         first_name: "Admin", last_name: i.to_s,
-        email: "loadtest-admin-#{i}@gymly.load",
+        email: "loadtest-admin-#{i}@fitora.load",
         password: password, role: :admin, locale: "fr",
         # An unconfirmed admin reaches nothing (BaseController#require_confirmed_email!).
         email_verified_at: Time.current
@@ -81,26 +81,21 @@ namespace :load_test do
       client_rows = clients_per_company.times.map do |c|
         {
           id: SecureRandom.uuid, company_id: company.id, first_name: "Client", last_name: "#{i}-#{c}",
-          email: "loadtest-client-#{i}-#{c}@gymly.load", phone: "+216 2#{format('%07d', c)}",
+          email: "loadtest-client-#{i}-#{c}@fitora.load", phone: "+216 2#{format('%07d', c)}",
           password_digest: password_digest, active: true, joined_at: now, created_at: now, updated_at: now
         }
       end
       Client.insert_all(client_rows)
 
-      contract_rows = client_rows.map do |c|
+      contract_rows = client_rows.each_with_index.map do |c, n|
         { id: SecureRandom.uuid, client_id: c[:id], contract_type_id: plan.id, activity_id: activities.sample.id,
-          company_id: company.id, created_at: now, updated_at: now }
+          # insert_all skips Contract#assign_invoice_ref, so the reference is spelled out here.
+          invoice_ref: format("FAC-%<year>d-%<n>04d", year: now.year, n: n + 1),
+          company_id: company.id, status: 1, payment_status: 1,
+          starts_at: 1.day.ago, expires_at: 1.year.from_now, discount: 0, base_price: 89, final_price: 89,
+          created_at: now, updated_at: now }
       end
       Contract.insert_all(contract_rows)
-
-      period_rows = contract_rows.map do |ct|
-        {
-          id: SecureRandom.uuid, contract_id: ct[:id], status: 1, payment_status: 1,
-          starts_at: 1.day.ago, expires_at: 1.year.from_now, discount: 0, base_price: 89, final_price: 89,
-          created_at: now, updated_at: now
-        }
-      end
-      ContractPeriod.insert_all(period_rows)
 
       accounts[:admins] << { email: admin.email, company_id: company.id, company_name: company.name }
       accounts[:clients].concat(client_rows.map { |c| { email: c[:email], company_id: company.id } })
@@ -120,7 +115,7 @@ namespace :load_test do
   desc "Remove all load-test seeded data"
   task clear: :environment do
     count = 0
-    User.where("email LIKE 'loadtest-admin-%@gymly.load'").find_each do |admin|
+    User.where("email LIKE 'loadtest-admin-%@fitora.load'").find_each do |admin|
       admin.destroy # dependent: :destroy on User#companies takes every one of them with it
       count += 1
     end

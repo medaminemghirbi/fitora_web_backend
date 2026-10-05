@@ -6,6 +6,9 @@ class RecurringSchedule < ApplicationRecord
   belongs_to :activity
   belongs_to :company
   belongs_to :coach, optional: true
+  # The cabin or studio every generated session takes — a weekly one-to-one
+  # slot is booked against a room as much as against a coach.
+  belongs_to :space, optional: true
 
   has_many :sessions, dependent: :nullify
 
@@ -15,6 +18,7 @@ class RecurringSchedule < ApplicationRecord
   validates :start_time, presence: true
   validates :starts_on, :ends_on, presence: true
   validate :activity_belongs_to_company
+  validate :space_belongs_to_company
   validate :ends_after_starts
   validate :weekdays_are_valid
 
@@ -49,7 +53,8 @@ class RecurringSchedule < ApplicationRecord
       end
 
       session = Session.new(
-        activity_id: activity_id, company_id: company_id, coach_id: coach_id, recurring_schedule_id: id,
+        activity_id: activity_id, company_id: company_id, coach_id: coach_id, space_id: space_id,
+        recurring_schedule_id: id,
         starts_at: starts_at, ends_at: starts_at + activity.duration.minutes,
         capacity: activity.capacity, status: :scheduled
       )
@@ -103,6 +108,12 @@ class RecurringSchedule < ApplicationRecord
     return if activity.blank? || company.blank?
 
     errors.add(:activity, "must belong to this gym") if activity.company != company
+  end
+
+  def space_belongs_to_company
+    return if space.blank? || company.blank?
+
+    errors.add(:space, "must belong to this gym") if space.company != company
   end
 
   def ends_after_starts

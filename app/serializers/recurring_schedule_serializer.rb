@@ -10,6 +10,8 @@ class RecurringScheduleSerializer
       activity_name: schedule.activity.name,
       coach_id: schedule.coach_id,
       coach_name: schedule.coach&.full_name,
+      space_id: schedule.space_id,
+      space_name: schedule.space&.name,
       weekdays: schedule.weekdays,
       start_time: schedule.start_time.strftime("%H:%M"),
       recurrence_type: schedule.recurrence_type,

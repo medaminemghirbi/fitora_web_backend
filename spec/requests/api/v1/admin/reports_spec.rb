@@ -15,7 +15,7 @@ RSpec.describe "Api::V1::Admin::Reports", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.content_type).to eq("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-      expect(response.headers["Content-Disposition"]).to include("gymly-rapport-")
+      expect(response.headers["Content-Disposition"]).to include("fitora-rapport-")
       expect(response.body.bytesize).to be > 0
     end
 

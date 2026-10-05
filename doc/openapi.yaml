@@ -1,7 +1,7 @@
 ---
 openapi: 3.2.0
 info:
-  title: Gymly API
+  title: Fitora API
   version: v1
   description: Generated from spec/requests — do not edit by hand.
 servers: []
@@ -30,6 +30,8 @@ paths:
                           type: string
                         emoji:
                           type: 'null'
+                        activity_template_id:
+                          type: 'null'
                         description:
                           type: 'null'
                         session_format:
@@ -49,6 +51,7 @@ paths:
                       - id
                       - name
                       - emoji
+                      - activity_template_id
                       - description
                       - session_format
                       - duration
@@ -115,6 +118,8 @@ paths:
                         type: string
                       emoji:
                         type: 'null'
+                      activity_template_id:
+                        type: 'null'
                       description:
                         type: 'null'
                       session_format:
@@ -134,6 +139,7 @@ paths:
                     - id
                     - name
                     - emoji
+                    - activity_template_id
                     - description
                     - session_format
                     - duration
@@ -207,6 +213,95 @@ paths:
                   - capacity
               required:
               - activity
+  "/api/v1/activities/adopt":
+    post:
+      summary: adopt
+      tags:
+      - Api::V1::Activity
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                activity_template_ids:
+                  type: array
+                  items:
+                    type: string
+              required:
+              - activity_template_ids
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activities:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        emoji:
+                          type: string
+                        activity_template_id:
+                          type: string
+                        description:
+                          type: 'null'
+                        session_format:
+                          type: string
+                        duration:
+                          type: integer
+                        capacity:
+                          type: integer
+                        active:
+                          type: boolean
+                        currency:
+                          type: string
+                        prices:
+                          type: array
+                          items: {}
+                      required:
+                      - id
+                      - name
+                      - emoji
+                      - activity_template_id
+                      - description
+                      - session_format
+                      - duration
+                      - capacity
+                      - active
+                      - currency
+                      - prices
+                required:
+                - activities
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
   "/api/v1/activities/{id}":
     delete:
       summary: destroy
@@ -332,6 +427,84 @@ paths:
                     type: string
                 required:
                 - error
+  "/api/v1/activity_templates":
+    get:
+      summary: index
+      tags:
+      - Api::V1::ActivityTemplate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activity_templates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        key:
+                          type: string
+                        family:
+                          type: string
+                        emoji:
+                          type: string
+                        names:
+                          type: object
+                          properties:
+                            en:
+                              type: string
+                            fr:
+                              type: string
+                          required:
+                          - en
+                          - fr
+                        session_format:
+                          type: string
+                        duration:
+                          type: integer
+                        capacity:
+                          type: integer
+                      required:
+                      - id
+                      - key
+                      - family
+                      - emoji
+                      - names
+                      - session_format
+                      - duration
+                      - capacity
+                required:
+                - activity_templates
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '402':
+          description: Payment Required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                - error
+                - message
   "/api/v1/admin/dashboard":
     get:
       summary: show
@@ -392,6 +565,12 @@ paths:
                         type: 'null'
                       logo_url:
                         type: 'null'
+                      signature_url:
+                        type: 'null'
+                      signatory_name:
+                        type: 'null'
+                      contract_terms:
+                        type: 'null'
                       included_modules:
                         type: array
                         items:
@@ -416,6 +595,10 @@ paths:
                                 type: boolean
                               waitlist:
                                 type: boolean
+                              drop_in:
+                                type: boolean
+                              packs:
+                                type: boolean
                             required:
                             - bookings
                             - spaces
@@ -424,6 +607,8 @@ paths:
                             - reports
                             - online_booking
                             - waitlist
+                            - drop_in
+                            - packs
                           booking:
                             type: object
                             properties:
@@ -433,10 +618,16 @@ paths:
                                 type: integer
                               no_show_consumes_session:
                                 type: boolean
+                              reminder_hours:
+                                type: integer
+                              reminder_sms:
+                                type: boolean
                             required:
                             - cancellation_hours
                             - booking_opens_days
                             - no_show_consumes_session
+                            - reminder_hours
+                            - reminder_sms
                           hours:
                             type: object
                             properties:
@@ -505,6 +696,9 @@ paths:
                     - slug
                     - primary_color
                     - logo_url
+                    - signature_url
+                    - signatory_name
+                    - contract_terms
                     - included_modules
                     - settings
                     - monthly_subscription_cents
@@ -1636,10 +1830,17 @@ paths:
                           type: string
                         payment_status:
                           type: string
+                        trial:
+                          type: boolean
                         created_at:
                           type: string
                         covered_by:
-                          type: 'null'
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                          required:
+                          - type
                         client:
                           type: object
                           properties:
@@ -1695,6 +1896,7 @@ paths:
                       - amount
                       - currency
                       - payment_status
+                      - trial
                       - created_at
                       - covered_by
                       - client
@@ -1792,6 +1994,10 @@ paths:
                   type: string
                 session_id:
                   type: string
+                trial:
+                  type: string
+                drop_in:
+                  type: string
               required:
               - client_id
               - session_id
@@ -1816,6 +2022,8 @@ paths:
                         type: string
                       payment_status:
                         type: string
+                      trial:
+                        type: boolean
                       created_at:
                         type: string
                       covered_by:
@@ -1827,7 +2035,6 @@ paths:
                             type: string
                         required:
                         - type
-                        - name
                       client:
                         type: object
                         properties:
@@ -1881,6 +2088,7 @@ paths:
                     - amount
                     - currency
                     - payment_status
+                    - trial
                     - created_at
                     - covered_by
                     - client
@@ -1924,6 +2132,7 @@ paths:
                       type: string
                 required:
                 - error
+                - errors
   "/api/v1/bookings/{id}":
     get:
       summary: show
@@ -1956,10 +2165,17 @@ paths:
                         type: string
                       payment_status:
                         type: string
+                      trial:
+                        type: boolean
                       created_at:
                         type: string
                       covered_by:
-                        type: 'null'
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                        required:
+                        - type
                       client:
                         type: object
                         properties:
@@ -2013,6 +2229,7 @@ paths:
                     - amount
                     - currency
                     - payment_status
+                    - trial
                     - created_at
                     - covered_by
                     - client
@@ -2093,10 +2310,17 @@ paths:
                         type: string
                       payment_status:
                         type: string
+                      trial:
+                        type: boolean
                       created_at:
                         type: string
                       covered_by:
-                        type: 'null'
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                        required:
+                        - type
                       client:
                         type: object
                         properties:
@@ -2150,6 +2374,7 @@ paths:
                     - amount
                     - currency
                     - payment_status
+                    - trial
                     - created_at
                     - covered_by
                     - client
@@ -2244,6 +2469,7 @@ paths:
                       type: string
                 required:
                 - error
+                - errors
   "/api/v1/bootstrap":
     get:
       summary: show
@@ -2377,6 +2603,12 @@ paths:
                         type: 'null'
                       logo_url:
                         type: 'null'
+                      signature_url:
+                        type: 'null'
+                      signatory_name:
+                        type: 'null'
+                      contract_terms:
+                        type: 'null'
                       included_modules:
                         type: array
                         items:
@@ -2401,6 +2633,10 @@ paths:
                                 type: boolean
                               waitlist:
                                 type: boolean
+                              drop_in:
+                                type: boolean
+                              packs:
+                                type: boolean
                             required:
                             - bookings
                             - spaces
@@ -2409,6 +2645,8 @@ paths:
                             - reports
                             - online_booking
                             - waitlist
+                            - drop_in
+                            - packs
                           booking:
                             type: object
                             properties:
@@ -2418,10 +2656,16 @@ paths:
                                 type: integer
                               no_show_consumes_session:
                                 type: boolean
+                              reminder_hours:
+                                type: integer
+                              reminder_sms:
+                                type: boolean
                             required:
                             - cancellation_hours
                             - booking_opens_days
                             - no_show_consumes_session
+                            - reminder_hours
+                            - reminder_sms
                           hours:
                             type: object
                             properties:
@@ -2490,6 +2734,9 @@ paths:
                     - slug
                     - primary_color
                     - logo_url
+                    - signature_url
+                    - signatory_name
+                    - contract_terms
                     - included_modules
                     - settings
                     - monthly_subscription_cents
@@ -2553,6 +2800,10 @@ paths:
                       online_booking:
                         type: boolean
                       waitlist:
+                        type: boolean
+                      drop_in:
+                        type: boolean
+                      packs:
                         type: boolean
                   roles:
                     type: array
@@ -2657,6 +2908,7 @@ paths:
                     - trial_days_left
                     - plan
                     - member_app
+                    - multi_salle
                   onboarding:
                     type:
                     - object
@@ -2854,10 +3106,14 @@ paths:
                           properties:
                             id:
                               type: string
-                            current_period_id:
+                            invoice_ref:
                               type: string
                             status:
                               type: string
+                            paused:
+                              type: boolean
+                            paused_at:
+                              type: 'null'
                             starts_at:
                               type: string
                             expires_at:
@@ -2877,8 +3133,6 @@ paths:
                             amount_due:
                               type: number
                               format: float
-                            payable_period_id:
-                              type: string
                             plan:
                               type: object
                               properties:
@@ -2896,6 +3150,8 @@ paths:
                                   type: string
                                 duration_days:
                                   type: integer
+                                validity_days:
+                                  type: 'null'
                                 session_count:
                                   type: 'null'
                                 unlimited_bookings:
@@ -2930,6 +3186,26 @@ paths:
                                     - activity_name
                                     - activity_emoji
                                     - price
+                                pack_prices:
+                                  type: array
+                                  items:
+                                    type: object
+                                    properties:
+                                      pack_id:
+                                        type: string
+                                      pack_name:
+                                        type: string
+                                      activity_names:
+                                        type: array
+                                        items:
+                                          type: string
+                                      price:
+                                        type: string
+                                    required:
+                                    - pack_id
+                                    - pack_name
+                                    - activity_names
+                                    - price
                               required:
                               - id
                               - company_id
@@ -2938,6 +3214,7 @@ paths:
                               - currency
                               - billing_period
                               - duration_days
+                              - validity_days
                               - session_count
                               - unlimited_bookings
                               - booking_limit
@@ -2946,6 +3223,7 @@ paths:
                               - active
                               - activity_ids
                               - activity_prices
+                              - pack_prices
                             activity:
                               type:
                               - object
@@ -2961,9 +3239,29 @@ paths:
                               - id
                               - name
                               - emoji
-                            upcoming_periods:
-                              type: array
-                              items: {}
+                            pack:
+                              type:
+                              - object
+                              - 'null'
+                              properties:
+                                id:
+                                  type: string
+                                name:
+                                  type: string
+                                activity_names:
+                                  type: array
+                                  items:
+                                    type: string
+                              required:
+                              - id
+                              - name
+                              - activity_names
+                            renewed_from_id:
+                              type: 'null'
+                            renewal:
+                              type: 'null'
+                            renewable:
+                              type: boolean
                             all_access:
                               type: boolean
                             activity_label:
@@ -2983,8 +3281,10 @@ paths:
                               - phone
                           required:
                           - id
-                          - current_period_id
+                          - invoice_ref
                           - status
+                          - paused
+                          - paused_at
                           - starts_at
                           - expires_at
                           - remaining_bookings
@@ -2994,10 +3294,12 @@ paths:
                           - final_price
                           - payment_status
                           - amount_due
-                          - payable_period_id
                           - plan
                           - activity
-                          - upcoming_periods
+                          - pack
+                          - renewed_from_id
+                          - renewal
+                          - renewable
                           - all_access
                           - activity_label
                           - client
@@ -3175,9 +3477,10 @@ paths:
                       type: string
                     payment_method:
                       type: string
+                    pack_id:
+                      type: string
                   required:
                   - contract_type_id
-                  - activity_id
               required:
               - client
       responses:
@@ -3218,10 +3521,14 @@ paths:
                         properties:
                           id:
                             type: string
-                          current_period_id:
+                          invoice_ref:
                             type: string
                           status:
                             type: string
+                          paused:
+                            type: boolean
+                          paused_at:
+                            type: 'null'
                           starts_at:
                             type: string
                           expires_at:
@@ -3241,10 +3548,6 @@ paths:
                           amount_due:
                             type: number
                             format: float
-                          payable_period_id:
-                            type:
-                            - string
-                            - 'null'
                           plan:
                             type: object
                             properties:
@@ -3262,6 +3565,8 @@ paths:
                                 type: string
                               duration_days:
                                 type: integer
+                              validity_days:
+                                type: 'null'
                               session_count:
                                 type: 'null'
                               unlimited_bookings:
@@ -3296,6 +3601,26 @@ paths:
                                   - activity_name
                                   - activity_emoji
                                   - price
+                              pack_prices:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    pack_id:
+                                      type: string
+                                    pack_name:
+                                      type: string
+                                    activity_names:
+                                      type: array
+                                      items:
+                                        type: string
+                                    price:
+                                      type: string
+                                  required:
+                                  - pack_id
+                                  - pack_name
+                                  - activity_names
+                                  - price
                             required:
                             - id
                             - company_id
@@ -3304,6 +3629,7 @@ paths:
                             - currency
                             - billing_period
                             - duration_days
+                            - validity_days
                             - session_count
                             - unlimited_bookings
                             - booking_limit
@@ -3312,8 +3638,11 @@ paths:
                             - active
                             - activity_ids
                             - activity_prices
+                            - pack_prices
                           activity:
-                            type: object
+                            type:
+                            - object
+                            - 'null'
                             properties:
                               id:
                                 type: string
@@ -3325,9 +3654,29 @@ paths:
                             - id
                             - name
                             - emoji
-                          upcoming_periods:
-                            type: array
-                            items: {}
+                          pack:
+                            type:
+                            - object
+                            - 'null'
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                              activity_names:
+                                type: array
+                                items:
+                                  type: string
+                            required:
+                            - id
+                            - name
+                            - activity_names
+                          renewed_from_id:
+                            type: 'null'
+                          renewal:
+                            type: 'null'
+                          renewable:
+                            type: boolean
                           all_access:
                             type: boolean
                           activity_label:
@@ -3347,8 +3696,10 @@ paths:
                             - phone
                         required:
                         - id
-                        - current_period_id
+                        - invoice_ref
                         - status
+                        - paused
+                        - paused_at
                         - starts_at
                         - expires_at
                         - remaining_bookings
@@ -3358,10 +3709,12 @@ paths:
                         - final_price
                         - payment_status
                         - amount_due
-                        - payable_period_id
                         - plan
                         - activity
-                        - upcoming_periods
+                        - pack
+                        - renewed_from_id
+                        - renewal
+                        - renewable
                         - all_access
                         - activity_label
                         - client
@@ -3383,10 +3736,14 @@ paths:
                     properties:
                       id:
                         type: string
-                      current_period_id:
+                      invoice_ref:
                         type: string
                       status:
                         type: string
+                      paused:
+                        type: boolean
+                      paused_at:
+                        type: 'null'
                       starts_at:
                         type: string
                       expires_at:
@@ -3406,10 +3763,6 @@ paths:
                       amount_due:
                         type: number
                         format: float
-                      payable_period_id:
-                        type:
-                        - string
-                        - 'null'
                       plan:
                         type: object
                         properties:
@@ -3427,6 +3780,8 @@ paths:
                             type: string
                           duration_days:
                             type: integer
+                          validity_days:
+                            type: 'null'
                           session_count:
                             type: 'null'
                           unlimited_bookings:
@@ -3461,6 +3816,26 @@ paths:
                               - activity_name
                               - activity_emoji
                               - price
+                          pack_prices:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                pack_id:
+                                  type: string
+                                pack_name:
+                                  type: string
+                                activity_names:
+                                  type: array
+                                  items:
+                                    type: string
+                                price:
+                                  type: string
+                              required:
+                              - pack_id
+                              - pack_name
+                              - activity_names
+                              - price
                         required:
                         - id
                         - company_id
@@ -3469,6 +3844,7 @@ paths:
                         - currency
                         - billing_period
                         - duration_days
+                        - validity_days
                         - session_count
                         - unlimited_bookings
                         - booking_limit
@@ -3477,8 +3853,11 @@ paths:
                         - active
                         - activity_ids
                         - activity_prices
+                        - pack_prices
                       activity:
-                        type: object
+                        type:
+                        - object
+                        - 'null'
                         properties:
                           id:
                             type: string
@@ -3490,9 +3869,29 @@ paths:
                         - id
                         - name
                         - emoji
-                      upcoming_periods:
-                        type: array
-                        items: {}
+                      pack:
+                        type:
+                        - object
+                        - 'null'
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          activity_names:
+                            type: array
+                            items:
+                              type: string
+                        required:
+                        - id
+                        - name
+                        - activity_names
+                      renewed_from_id:
+                        type: 'null'
+                      renewal:
+                        type: 'null'
+                      renewable:
+                        type: boolean
                       all_access:
                         type: boolean
                       activity_label:
@@ -3512,8 +3911,10 @@ paths:
                         - phone
                     required:
                     - id
-                    - current_period_id
+                    - invoice_ref
                     - status
+                    - paused
+                    - paused_at
                     - starts_at
                     - expires_at
                     - remaining_bookings
@@ -3523,10 +3924,12 @@ paths:
                     - final_price
                     - payment_status
                     - amount_due
-                    - payable_period_id
                     - plan
                     - activity
-                    - upcoming_periods
+                    - pack
+                    - renewed_from_id
+                    - renewal
+                    - renewable
                     - all_access
                     - activity_label
                     - client
@@ -3741,6 +4144,14 @@ paths:
                         type: 'null'
                       notes:
                         type: 'null'
+                      health_notes:
+                        type:
+                        - string
+                        - 'null'
+                      waiver_signed_on:
+                        type:
+                        - string
+                        - 'null'
                       identity_locked:
                         type: boolean
                       invitation_pending:
@@ -3770,6 +4181,8 @@ paths:
                     - emergency_contact_name
                     - emergency_contact_phone
                     - notes
+                    - health_notes
+                    - waiver_signed_on
                     - identity_locked
                     - invitation_pending
                     - invited_at
@@ -4110,6 +4523,10 @@ paths:
                           type: string
                         email:
                           type: string
+                        health_notes:
+                          type:
+                          - string
+                          - 'null'
                         last_seen_at:
                           type:
                           - string
@@ -4121,6 +4538,7 @@ paths:
                       - full_name
                       - phone
                       - email
+                      - health_notes
                       - last_seen_at
                       - next_session_at
                   meta:
@@ -4605,6 +5023,7 @@ paths:
                       type: string
                 required:
                 - error
+                - errors
   "/api/v1/companies":
     get:
       summary: index
@@ -4689,6 +5108,22 @@ paths:
                   - name
                   - timezone
                   - currency
+                activity_template_ids:
+                  type: array
+                  items:
+                    type: string
+                custom_activities:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      emoji:
+                        type: string
+                    required:
+                    - name
+                    - emoji
               required:
               - company
       responses:
@@ -4746,6 +5181,12 @@ paths:
                         type: 'null'
                       logo_url:
                         type: 'null'
+                      signature_url:
+                        type: 'null'
+                      signatory_name:
+                        type: 'null'
+                      contract_terms:
+                        type: 'null'
                       included_modules:
                         type: array
                         items:
@@ -4770,6 +5211,10 @@ paths:
                                 type: boolean
                               waitlist:
                                 type: boolean
+                              drop_in:
+                                type: boolean
+                              packs:
+                                type: boolean
                             required:
                             - bookings
                             - spaces
@@ -4778,6 +5223,8 @@ paths:
                             - reports
                             - online_booking
                             - waitlist
+                            - drop_in
+                            - packs
                           booking:
                             type: object
                             properties:
@@ -4787,10 +5234,16 @@ paths:
                                 type: integer
                               no_show_consumes_session:
                                 type: boolean
+                              reminder_hours:
+                                type: integer
+                              reminder_sms:
+                                type: boolean
                             required:
                             - cancellation_hours
                             - booking_opens_days
                             - no_show_consumes_session
+                            - reminder_hours
+                            - reminder_sms
                           hours:
                             type: object
                             properties:
@@ -4859,6 +5312,9 @@ paths:
                     - slug
                     - primary_color
                     - logo_url
+                    - signature_url
+                    - signatory_name
+                    - contract_terms
                     - included_modules
                     - settings
                     - monthly_subscription_cents
@@ -4891,6 +5347,22 @@ paths:
                 required:
                 - error
                 - message
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
   "/api/v1/companies/network":
     get:
       summary: network
@@ -5216,6 +5688,12 @@ paths:
                         type: 'null'
                       logo_url:
                         type: 'null'
+                      signature_url:
+                        type: 'null'
+                      signatory_name:
+                        type: 'null'
+                      contract_terms:
+                        type: 'null'
                       included_modules:
                         type: array
                         items:
@@ -5240,6 +5718,10 @@ paths:
                                 type: boolean
                               waitlist:
                                 type: boolean
+                              drop_in:
+                                type: boolean
+                              packs:
+                                type: boolean
                             required:
                             - bookings
                             - spaces
@@ -5248,6 +5730,8 @@ paths:
                             - reports
                             - online_booking
                             - waitlist
+                            - drop_in
+                            - packs
                           booking:
                             type: object
                             properties:
@@ -5257,10 +5741,16 @@ paths:
                                 type: integer
                               no_show_consumes_session:
                                 type: boolean
+                              reminder_hours:
+                                type: integer
+                              reminder_sms:
+                                type: boolean
                             required:
                             - cancellation_hours
                             - booking_opens_days
                             - no_show_consumes_session
+                            - reminder_hours
+                            - reminder_sms
                           hours:
                             type: object
                             properties:
@@ -5329,6 +5819,9 @@ paths:
                     - slug
                     - primary_color
                     - logo_url
+                    - signature_url
+                    - signatory_name
+                    - contract_terms
                     - included_modules
                     - settings
                     - monthly_subscription_cents
@@ -5418,6 +5911,12 @@ paths:
                         type: 'null'
                       logo_url:
                         type: 'null'
+                      signature_url:
+                        type: 'null'
+                      signatory_name:
+                        type: 'null'
+                      contract_terms:
+                        type: 'null'
                       included_modules:
                         type: array
                         items:
@@ -5442,6 +5941,10 @@ paths:
                                 type: boolean
                               waitlist:
                                 type: boolean
+                              drop_in:
+                                type: boolean
+                              packs:
+                                type: boolean
                             required:
                             - bookings
                             - spaces
@@ -5450,6 +5953,8 @@ paths:
                             - reports
                             - online_booking
                             - waitlist
+                            - drop_in
+                            - packs
                           booking:
                             type: object
                             properties:
@@ -5459,10 +5964,16 @@ paths:
                                 type: integer
                               no_show_consumes_session:
                                 type: boolean
+                              reminder_hours:
+                                type: integer
+                              reminder_sms:
+                                type: boolean
                             required:
                             - cancellation_hours
                             - booking_opens_days
                             - no_show_consumes_session
+                            - reminder_hours
+                            - reminder_sms
                           hours:
                             type: object
                             properties:
@@ -5531,6 +6042,9 @@ paths:
                     - slug
                     - primary_color
                     - logo_url
+                    - signature_url
+                    - signatory_name
+                    - contract_terms
                     - included_modules
                     - settings
                     - monthly_subscription_cents
@@ -5593,6 +6107,8 @@ paths:
                       type: string
                     primary_color:
                       type: string
+                    remove_signature:
+                      type: string
                     working_days:
                       type: array
                       items:
@@ -5610,11 +6126,16 @@ paths:
                 company:
                   type: object
                   properties:
+                    signature:
+                      type: string
+                      format: binary
+                    signatory_name:
+                      type: string
+                    contract_terms:
+                      type: string
                     logo:
                       type: string
                       format: binary
-                  required:
-                  - logo
               required:
               - company
       responses:
@@ -5678,6 +6199,18 @@ paths:
                         type:
                         - string
                         - 'null'
+                      signature_url:
+                        type:
+                        - string
+                        - 'null'
+                      signatory_name:
+                        type:
+                        - string
+                        - 'null'
+                      contract_terms:
+                        type:
+                        - string
+                        - 'null'
                       included_modules:
                         type: array
                         items:
@@ -5702,6 +6235,10 @@ paths:
                                 type: boolean
                               waitlist:
                                 type: boolean
+                              drop_in:
+                                type: boolean
+                              packs:
+                                type: boolean
                             required:
                             - bookings
                             - spaces
@@ -5710,6 +6247,8 @@ paths:
                             - reports
                             - online_booking
                             - waitlist
+                            - drop_in
+                            - packs
                           booking:
                             type: object
                             properties:
@@ -5719,10 +6258,16 @@ paths:
                                 type: integer
                               no_show_consumes_session:
                                 type: boolean
+                              reminder_hours:
+                                type: integer
+                              reminder_sms:
+                                type: boolean
                             required:
                             - cancellation_hours
                             - booking_opens_days
                             - no_show_consumes_session
+                            - reminder_hours
+                            - reminder_sms
                           hours:
                             type: object
                             properties:
@@ -5793,6 +6338,9 @@ paths:
                     - slug
                     - primary_color
                     - logo_url
+                    - signature_url
+                    - signatory_name
+                    - contract_terms
                     - included_modules
                     - settings
                     - monthly_subscription_cents
@@ -5886,6 +6434,8 @@ paths:
                           type: string
                         duration_days:
                           type: integer
+                        validity_days:
+                          type: 'null'
                         session_count:
                           type: 'null'
                         unlimited_bookings:
@@ -5920,6 +6470,9 @@ paths:
                             - activity_name
                             - activity_emoji
                             - price
+                        pack_prices:
+                          type: array
+                          items: {}
                       required:
                       - id
                       - company_id
@@ -5928,6 +6481,7 @@ paths:
                       - currency
                       - billing_period
                       - duration_days
+                      - validity_days
                       - session_count
                       - unlimited_bookings
                       - booking_limit
@@ -5936,6 +6490,7 @@ paths:
                       - active
                       - activity_ids
                       - activity_prices
+                      - pack_prices
                 required:
                 - plans
         '401':
@@ -5982,10 +6537,13 @@ paths:
                       type: string
                     unlimited_bookings:
                       type: string
+                    validity_days:
+                      type: string
+                    booking_limit:
+                      type: string
                   required:
                   - name
                   - billing_period
-                  - unlimited_bookings
                 activity_prices:
                   type: array
                   items:
@@ -6025,12 +6583,18 @@ paths:
                         type: string
                       duration_days:
                         type: integer
+                      validity_days:
+                        type:
+                        - integer
+                        - 'null'
                       session_count:
                         type: 'null'
                       unlimited_bookings:
                         type: boolean
                       booking_limit:
-                        type: 'null'
+                        type:
+                        - integer
+                        - 'null'
                       priority_booking:
                         type: boolean
                       color:
@@ -6059,6 +6623,9 @@ paths:
                           - activity_name
                           - activity_emoji
                           - price
+                      pack_prices:
+                        type: array
+                        items: {}
                     required:
                     - id
                     - company_id
@@ -6067,6 +6634,7 @@ paths:
                     - currency
                     - billing_period
                     - duration_days
+                    - validity_days
                     - session_count
                     - unlimited_bookings
                     - booking_limit
@@ -6075,6 +6643,7 @@ paths:
                     - active
                     - activity_ids
                     - activity_prices
+                    - pack_prices
                 required:
                 - plan
         '401':
@@ -6099,6 +6668,22 @@ paths:
                     type: string
                 required:
                 - error
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
   "/api/v1/contract_types/{id}":
     get:
       summary: show
@@ -6163,8 +6748,6 @@ paths:
                       type: string
                   required:
                   - name
-                  - billing_period
-                  - unlimited_bookings
                 activity_prices:
                   type: array
                   items:
@@ -6177,9 +6760,35 @@ paths:
                     required:
                     - activity_id
                     - price
+                pack_prices:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      pack_id:
+                        type: string
+                      price:
+                        type: string
+                    required:
+                    - pack_id
+                    - price
+          application/json:
+            schema:
+              type: object
+              properties:
+                contract_type:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                pack_prices:
+                  type: array
+                  items: {}
               required:
               - contract_type
-              - activity_prices
+              - pack_prices
       responses:
         '200':
           description: OK
@@ -6205,6 +6814,8 @@ paths:
                         type: string
                       duration_days:
                         type: integer
+                      validity_days:
+                        type: 'null'
                       session_count:
                         type: 'null'
                       unlimited_bookings:
@@ -6239,6 +6850,26 @@ paths:
                           - activity_name
                           - activity_emoji
                           - price
+                      pack_prices:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            pack_id:
+                              type: string
+                            pack_name:
+                              type: string
+                            activity_names:
+                              type: array
+                              items:
+                                type: string
+                            price:
+                              type: string
+                          required:
+                          - pack_id
+                          - pack_name
+                          - activity_names
+                          - price
                     required:
                     - id
                     - company_id
@@ -6247,6 +6878,7 @@ paths:
                     - currency
                     - billing_period
                     - duration_days
+                    - validity_days
                     - session_count
                     - unlimited_bookings
                     - booking_limit
@@ -6255,6 +6887,7 @@ paths:
                     - active
                     - activity_ids
                     - activity_prices
+                    - pack_prices
                 required:
                 - plan
         '401':
@@ -6321,10 +6954,16 @@ paths:
                       properties:
                         id:
                           type: string
-                        current_period_id:
+                        invoice_ref:
                           type: string
                         status:
                           type: string
+                        paused:
+                          type: boolean
+                        paused_at:
+                          type:
+                          - string
+                          - 'null'
                         starts_at:
                           type: string
                         expires_at:
@@ -6342,14 +6981,8 @@ paths:
                         payment_status:
                           type: string
                         amount_due:
-                          oneOf:
-                          - type: integer
-                          - type: number
-                            format: float
-                        payable_period_id:
-                          type:
-                          - string
-                          - 'null'
+                          type: number
+                          format: float
                         plan:
                           type: object
                           properties:
@@ -6367,6 +7000,8 @@ paths:
                               type: string
                             duration_days:
                               type: integer
+                            validity_days:
+                              type: 'null'
                             session_count:
                               type: 'null'
                             unlimited_bookings:
@@ -6401,6 +7036,9 @@ paths:
                                 - activity_name
                                 - activity_emoji
                                 - price
+                            pack_prices:
+                              type: array
+                              items: {}
                           required:
                           - id
                           - company_id
@@ -6409,6 +7047,7 @@ paths:
                           - currency
                           - billing_period
                           - duration_days
+                          - validity_days
                           - session_count
                           - unlimited_bookings
                           - booking_limit
@@ -6417,6 +7056,7 @@ paths:
                           - active
                           - activity_ids
                           - activity_prices
+                          - pack_prices
                         activity:
                           type:
                           - object
@@ -6432,27 +7072,38 @@ paths:
                           - id
                           - name
                           - emoji
-                        upcoming_periods:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              id:
-                                type: string
-                              starts_at:
-                                type: string
-                              expires_at:
-                                type: string
-                              final_price:
-                                type: string
-                              payment_status:
-                                type: string
-                            required:
-                            - id
-                            - starts_at
-                            - expires_at
-                            - final_price
-                            - payment_status
+                        pack:
+                          type: 'null'
+                        renewed_from_id:
+                          type:
+                          - string
+                          - 'null'
+                        renewal:
+                          type:
+                          - object
+                          - 'null'
+                          properties:
+                            id:
+                              type: string
+                            starts_at:
+                              type: string
+                            expires_at:
+                              type: string
+                            final_price:
+                              type: string
+                            payment_status:
+                              type: string
+                            plan_name:
+                              type: string
+                          required:
+                          - id
+                          - starts_at
+                          - expires_at
+                          - final_price
+                          - payment_status
+                          - plan_name
+                        renewable:
+                          type: boolean
                         all_access:
                           type: boolean
                         activity_label:
@@ -6472,8 +7123,10 @@ paths:
                           - phone
                       required:
                       - id
-                      - current_period_id
+                      - invoice_ref
                       - status
+                      - paused
+                      - paused_at
                       - starts_at
                       - expires_at
                       - remaining_bookings
@@ -6483,10 +7136,12 @@ paths:
                       - final_price
                       - payment_status
                       - amount_due
-                      - payable_period_id
                       - plan
                       - activity
-                      - upcoming_periods
+                      - pack
+                      - renewed_from_id
+                      - renewal
+                      - renewable
                       - all_access
                       - activity_label
                       - client
@@ -6523,6 +7178,8 @@ paths:
                         type: integer
                       expiring:
                         type: integer
+                      paused:
+                        type: integer
                     required:
                     - pending
                     - active
@@ -6531,6 +7188,7 @@ paths:
                     - all
                     - unpaid
                     - expiring
+                    - paused
                   plan_counts:
                     type: object
                     additionalProperties:
@@ -6637,10 +7295,11 @@ paths:
                   type: string
                 payment_method:
                   type: string
+                pack_id:
+                  type: string
               required:
               - client_id
               - contract_type_id
-              - activity_id
       responses:
         '201':
           description: Created
@@ -6654,10 +7313,14 @@ paths:
                     properties:
                       id:
                         type: string
-                      current_period_id:
+                      invoice_ref:
                         type: string
                       status:
                         type: string
+                      paused:
+                        type: boolean
+                      paused_at:
+                        type: 'null'
                       starts_at:
                         type: string
                       expires_at:
@@ -6677,10 +7340,6 @@ paths:
                       amount_due:
                         type: number
                         format: float
-                      payable_period_id:
-                        type:
-                        - string
-                        - 'null'
                       plan:
                         type: object
                         properties:
@@ -6698,6 +7357,8 @@ paths:
                             type: string
                           duration_days:
                             type: integer
+                          validity_days:
+                            type: 'null'
                           session_count:
                             type: 'null'
                           unlimited_bookings:
@@ -6732,6 +7393,26 @@ paths:
                               - activity_name
                               - activity_emoji
                               - price
+                          pack_prices:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                pack_id:
+                                  type: string
+                                pack_name:
+                                  type: string
+                                activity_names:
+                                  type: array
+                                  items:
+                                    type: string
+                                price:
+                                  type: string
+                              required:
+                              - pack_id
+                              - pack_name
+                              - activity_names
+                              - price
                         required:
                         - id
                         - company_id
@@ -6740,6 +7421,7 @@ paths:
                         - currency
                         - billing_period
                         - duration_days
+                        - validity_days
                         - session_count
                         - unlimited_bookings
                         - booking_limit
@@ -6748,8 +7430,11 @@ paths:
                         - active
                         - activity_ids
                         - activity_prices
+                        - pack_prices
                       activity:
-                        type: object
+                        type:
+                        - object
+                        - 'null'
                         properties:
                           id:
                             type: string
@@ -6761,9 +7446,29 @@ paths:
                         - id
                         - name
                         - emoji
-                      upcoming_periods:
-                        type: array
-                        items: {}
+                      pack:
+                        type:
+                        - object
+                        - 'null'
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          activity_names:
+                            type: array
+                            items:
+                              type: string
+                        required:
+                        - id
+                        - name
+                        - activity_names
+                      renewed_from_id:
+                        type: 'null'
+                      renewal:
+                        type: 'null'
+                      renewable:
+                        type: boolean
                       all_access:
                         type: boolean
                       activity_label:
@@ -6783,8 +7488,10 @@ paths:
                         - phone
                     required:
                     - id
-                    - current_period_id
+                    - invoice_ref
                     - status
+                    - paused
+                    - paused_at
                     - starts_at
                     - expires_at
                     - remaining_bookings
@@ -6794,10 +7501,12 @@ paths:
                     - final_price
                     - payment_status
                     - amount_due
-                    - payable_period_id
                     - plan
                     - activity
-                    - upcoming_periods
+                    - pack
+                    - renewed_from_id
+                    - renewal
+                    - renewable
                     - all_access
                     - activity_label
                     - client
@@ -6976,10 +7685,14 @@ paths:
                     properties:
                       id:
                         type: string
-                      current_period_id:
+                      invoice_ref:
                         type: string
                       status:
                         type: string
+                      paused:
+                        type: boolean
+                      paused_at:
+                        type: 'null'
                       starts_at:
                         type: string
                       expires_at:
@@ -6999,8 +7712,6 @@ paths:
                       amount_due:
                         type: number
                         format: float
-                      payable_period_id:
-                        type: string
                       plan:
                         type: object
                         properties:
@@ -7018,6 +7729,8 @@ paths:
                             type: string
                           duration_days:
                             type: integer
+                          validity_days:
+                            type: 'null'
                           session_count:
                             type: 'null'
                           unlimited_bookings:
@@ -7052,6 +7765,9 @@ paths:
                               - activity_name
                               - activity_emoji
                               - price
+                          pack_prices:
+                            type: array
+                            items: {}
                         required:
                         - id
                         - company_id
@@ -7060,6 +7776,7 @@ paths:
                         - currency
                         - billing_period
                         - duration_days
+                        - validity_days
                         - session_count
                         - unlimited_bookings
                         - booking_limit
@@ -7068,11 +7785,52 @@ paths:
                         - active
                         - activity_ids
                         - activity_prices
+                        - pack_prices
                       activity:
+                        type:
+                        - object
+                        - 'null'
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          emoji:
+                            type: 'null'
+                        required:
+                        - id
+                        - name
+                        - emoji
+                      pack:
                         type: 'null'
-                      upcoming_periods:
-                        type: array
-                        items: {}
+                      renewed_from_id:
+                        type: 'null'
+                      renewal:
+                        type:
+                        - object
+                        - 'null'
+                        properties:
+                          id:
+                            type: string
+                          starts_at:
+                            type: string
+                          expires_at:
+                            type: string
+                          final_price:
+                            type: string
+                          payment_status:
+                            type: string
+                          plan_name:
+                            type: string
+                        required:
+                        - id
+                        - starts_at
+                        - expires_at
+                        - final_price
+                        - payment_status
+                        - plan_name
+                      renewable:
+                        type: boolean
                       all_access:
                         type: boolean
                       activity_label:
@@ -7092,8 +7850,10 @@ paths:
                         - phone
                     required:
                     - id
-                    - current_period_id
+                    - invoice_ref
                     - status
+                    - paused
+                    - paused_at
                     - starts_at
                     - expires_at
                     - remaining_bookings
@@ -7103,10 +7863,12 @@ paths:
                     - final_price
                     - payment_status
                     - amount_due
-                    - payable_period_id
                     - plan
                     - activity
-                    - upcoming_periods
+                    - pack
+                    - renewed_from_id
+                    - renewal
+                    - renewable
                     - all_access
                     - activity_label
                     - client
@@ -7181,10 +7943,14 @@ paths:
                     properties:
                       id:
                         type: string
-                      current_period_id:
+                      invoice_ref:
                         type: string
                       status:
                         type: string
+                      paused:
+                        type: boolean
+                      paused_at:
+                        type: 'null'
                       starts_at:
                         type: string
                       expires_at:
@@ -7204,8 +7970,6 @@ paths:
                       amount_due:
                         type: number
                         format: float
-                      payable_period_id:
-                        type: string
                       plan:
                         type: object
                         properties:
@@ -7223,6 +7987,8 @@ paths:
                             type: string
                           duration_days:
                             type: integer
+                          validity_days:
+                            type: 'null'
                           session_count:
                             type: 'null'
                           unlimited_bookings:
@@ -7257,6 +8023,9 @@ paths:
                               - activity_name
                               - activity_emoji
                               - price
+                          pack_prices:
+                            type: array
+                            items: {}
                         required:
                         - id
                         - company_id
@@ -7265,6 +8034,7 @@ paths:
                         - currency
                         - billing_period
                         - duration_days
+                        - validity_days
                         - session_count
                         - unlimited_bookings
                         - booking_limit
@@ -7273,6 +8043,7 @@ paths:
                         - active
                         - activity_ids
                         - activity_prices
+                        - pack_prices
                       activity:
                         type: object
                         properties:
@@ -7286,27 +8057,14 @@ paths:
                         - id
                         - name
                         - emoji
-                      upcoming_periods:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                            starts_at:
-                              type: string
-                            expires_at:
-                              type: string
-                            final_price:
-                              type: string
-                            payment_status:
-                              type: string
-                          required:
-                          - id
-                          - starts_at
-                          - expires_at
-                          - final_price
-                          - payment_status
+                      pack:
+                        type: 'null'
+                      renewed_from_id:
+                        type: 'null'
+                      renewal:
+                        type: 'null'
+                      renewable:
+                        type: boolean
                       all_access:
                         type: boolean
                       activity_label:
@@ -7326,8 +8084,10 @@ paths:
                         - phone
                     required:
                     - id
-                    - current_period_id
+                    - invoice_ref
                     - status
+                    - paused
+                    - paused_at
                     - starts_at
                     - expires_at
                     - remaining_bookings
@@ -7337,10 +8097,12 @@ paths:
                     - final_price
                     - payment_status
                     - amount_due
-                    - payable_period_id
                     - plan
                     - activity
-                    - upcoming_periods
+                    - pack
+                    - renewed_from_id
+                    - renewal
+                    - renewable
                     - all_access
                     - activity_label
                     - client
@@ -7372,6 +8134,7 @@ paths:
                       type: string
                 required:
                 - error
+                - errors
     put:
       summary: update
       tags:
@@ -7394,6 +8157,50 @@ paths:
                     type: string
                 required:
                 - error
+  "/api/v1/contracts/{id}/agreement":
+    get:
+      summary: agreement
+      tags:
+      - Api::V1::Contract
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '402':
+          description: Payment Required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                - error
+                - message
   "/api/v1/contracts/{id}/cancel":
     post:
       summary: cancel
@@ -7424,10 +8231,14 @@ paths:
                     properties:
                       id:
                         type: string
-                      current_period_id:
+                      invoice_ref:
                         type: string
                       status:
                         type: string
+                      paused:
+                        type: boolean
+                      paused_at:
+                        type: 'null'
                       starts_at:
                         type: string
                       expires_at:
@@ -7445,9 +8256,8 @@ paths:
                       payment_status:
                         type: string
                       amount_due:
-                        type: integer
-                      payable_period_id:
-                        type: 'null'
+                        type: number
+                        format: float
                       plan:
                         type: object
                         properties:
@@ -7465,6 +8275,8 @@ paths:
                             type: string
                           duration_days:
                             type: integer
+                          validity_days:
+                            type: 'null'
                           session_count:
                             type: 'null'
                           unlimited_bookings:
@@ -7499,6 +8311,9 @@ paths:
                               - activity_name
                               - activity_emoji
                               - price
+                          pack_prices:
+                            type: array
+                            items: {}
                         required:
                         - id
                         - company_id
@@ -7507,6 +8322,7 @@ paths:
                         - currency
                         - billing_period
                         - duration_days
+                        - validity_days
                         - session_count
                         - unlimited_bookings
                         - booking_limit
@@ -7515,6 +8331,7 @@ paths:
                         - active
                         - activity_ids
                         - activity_prices
+                        - pack_prices
                       activity:
                         type: object
                         properties:
@@ -7528,9 +8345,14 @@ paths:
                         - id
                         - name
                         - emoji
-                      upcoming_periods:
-                        type: array
-                        items: {}
+                      pack:
+                        type: 'null'
+                      renewed_from_id:
+                        type: 'null'
+                      renewal:
+                        type: 'null'
+                      renewable:
+                        type: boolean
                       all_access:
                         type: boolean
                       activity_label:
@@ -7550,8 +8372,10 @@ paths:
                         - phone
                     required:
                     - id
-                    - current_period_id
+                    - invoice_ref
                     - status
+                    - paused
+                    - paused_at
                     - starts_at
                     - expires_at
                     - remaining_bookings
@@ -7561,10 +8385,12 @@ paths:
                     - final_price
                     - payment_status
                     - amount_due
-                    - payable_period_id
                     - plan
                     - activity
-                    - upcoming_periods
+                    - pack
+                    - renewed_from_id
+                    - renewal
+                    - renewable
                     - all_access
                     - activity_label
                     - client
@@ -7605,6 +8431,30 @@ paths:
                     type: array
                     items:
                       type: string
+                required:
+                - error
+                - errors
+  "/api/v1/contracts/{id}/pause":
+    post:
+      summary: pause
+      tags:
+      - Api::V1::Contract
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
                 required:
                 - error
   "/api/v1/contracts/{id}/receipt":
@@ -7678,7 +8528,11 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               type: object
-              properties: {}
+              properties:
+                contract_type_id:
+                  type: string
+                activity_id:
+                  type: string
       responses:
         '201':
           description: Created
@@ -7692,10 +8546,14 @@ paths:
                     properties:
                       id:
                         type: string
-                      current_period_id:
+                      invoice_ref:
                         type: string
                       status:
                         type: string
+                      paused:
+                        type: boolean
+                      paused_at:
+                        type: 'null'
                       starts_at:
                         type: string
                       expires_at:
@@ -7715,8 +8573,6 @@ paths:
                       amount_due:
                         type: number
                         format: float
-                      payable_period_id:
-                        type: string
                       plan:
                         type: object
                         properties:
@@ -7734,6 +8590,8 @@ paths:
                             type: string
                           duration_days:
                             type: integer
+                          validity_days:
+                            type: 'null'
                           session_count:
                             type: 'null'
                           unlimited_bookings:
@@ -7768,6 +8626,9 @@ paths:
                               - activity_name
                               - activity_emoji
                               - price
+                          pack_prices:
+                            type: array
+                            items: {}
                         required:
                         - id
                         - company_id
@@ -7776,6 +8637,7 @@ paths:
                         - currency
                         - billing_period
                         - duration_days
+                        - validity_days
                         - session_count
                         - unlimited_bookings
                         - booking_limit
@@ -7784,6 +8646,7 @@ paths:
                         - active
                         - activity_ids
                         - activity_prices
+                        - pack_prices
                       activity:
                         type: object
                         properties:
@@ -7797,27 +8660,14 @@ paths:
                         - id
                         - name
                         - emoji
-                      upcoming_periods:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                            starts_at:
-                              type: string
-                            expires_at:
-                              type: string
-                            final_price:
-                              type: string
-                            payment_status:
-                              type: string
-                          required:
-                          - id
-                          - starts_at
-                          - expires_at
-                          - final_price
-                          - payment_status
+                      pack:
+                        type: 'null'
+                      renewed_from_id:
+                        type: string
+                      renewal:
+                        type: 'null'
+                      renewable:
+                        type: boolean
                       all_access:
                         type: boolean
                       activity_label:
@@ -7837,8 +8687,10 @@ paths:
                         - phone
                     required:
                     - id
-                    - current_period_id
+                    - invoice_ref
                     - status
+                    - paused
+                    - paused_at
                     - starts_at
                     - expires_at
                     - remaining_bookings
@@ -7848,10 +8700,12 @@ paths:
                     - final_price
                     - payment_status
                     - amount_due
-                    - payable_period_id
                     - plan
                     - activity
-                    - upcoming_periods
+                    - pack
+                    - renewed_from_id
+                    - renewal
+                    - renewable
                     - all_access
                     - activity_label
                     - client
@@ -7868,6 +8722,255 @@ paths:
                     type: string
                 required:
                 - error
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
+  "/api/v1/contracts/{id}/resume":
+    post:
+      summary: resume
+      tags:
+      - Api::V1::Contract
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      invoice_ref:
+                        type: string
+                      status:
+                        type: string
+                      paused:
+                        type: boolean
+                      paused_at:
+                        type: 'null'
+                      starts_at:
+                        type: string
+                      expires_at:
+                        type: string
+                      remaining_bookings:
+                        type: 'null'
+                      auto_renew:
+                        type: boolean
+                      discount:
+                        type: string
+                      base_price:
+                        type: string
+                      final_price:
+                        type: string
+                      payment_status:
+                        type: string
+                      amount_due:
+                        type: number
+                        format: float
+                      plan:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          company_id:
+                            type: string
+                          name:
+                            type: string
+                          description:
+                            type: 'null'
+                          currency:
+                            type: string
+                          billing_period:
+                            type: string
+                          duration_days:
+                            type: integer
+                          validity_days:
+                            type: 'null'
+                          session_count:
+                            type: 'null'
+                          unlimited_bookings:
+                            type: boolean
+                          booking_limit:
+                            type: 'null'
+                          priority_booking:
+                            type: boolean
+                          color:
+                            type: string
+                          active:
+                            type: boolean
+                          activity_ids:
+                            type: array
+                            items:
+                              type: string
+                          activity_prices:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                activity_id:
+                                  type: string
+                                activity_name:
+                                  type: string
+                                activity_emoji:
+                                  type: 'null'
+                                price:
+                                  type: string
+                              required:
+                              - activity_id
+                              - activity_name
+                              - activity_emoji
+                              - price
+                          pack_prices:
+                            type: array
+                            items: {}
+                        required:
+                        - id
+                        - company_id
+                        - name
+                        - description
+                        - currency
+                        - billing_period
+                        - duration_days
+                        - validity_days
+                        - session_count
+                        - unlimited_bookings
+                        - booking_limit
+                        - priority_booking
+                        - color
+                        - active
+                        - activity_ids
+                        - activity_prices
+                        - pack_prices
+                      activity:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          emoji:
+                            type: 'null'
+                        required:
+                        - id
+                        - name
+                        - emoji
+                      pack:
+                        type: 'null'
+                      renewed_from_id:
+                        type: 'null'
+                      renewal:
+                        type: 'null'
+                      renewable:
+                        type: boolean
+                      all_access:
+                        type: boolean
+                      activity_label:
+                        type: string
+                      client:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          full_name:
+                            type: string
+                          phone:
+                            type: string
+                        required:
+                        - id
+                        - full_name
+                        - phone
+                    required:
+                    - id
+                    - invoice_ref
+                    - status
+                    - paused
+                    - paused_at
+                    - starts_at
+                    - expires_at
+                    - remaining_bookings
+                    - auto_renew
+                    - discount
+                    - base_price
+                    - final_price
+                    - payment_status
+                    - amount_due
+                    - plan
+                    - activity
+                    - pack
+                    - renewed_from_id
+                    - renewal
+                    - renewable
+                    - all_access
+                    - activity_label
+                    - client
+                required:
+                - contract
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
   "/api/v1/data_exchange/imports/{id}":
     get:
       summary: show_import
@@ -8447,6 +9550,8 @@ paths:
                         type: string
                       payment_status:
                         type: string
+                      trial:
+                        type: boolean
                       created_at:
                         type: string
                       covered_by:
@@ -8512,6 +9617,7 @@ paths:
                     - amount
                     - currency
                     - payment_status
+                    - trial
                     - created_at
                     - covered_by
                     - client
@@ -8558,6 +9664,7 @@ paths:
                       type: string
                 required:
                 - error
+                - errors
   "/api/v1/me/bookings/{id}/cancel":
     post:
       summary: cancel
@@ -8596,10 +9703,17 @@ paths:
                         type: string
                       payment_status:
                         type: string
+                      trial:
+                        type: boolean
                       created_at:
                         type: string
                       covered_by:
-                        type: 'null'
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                        required:
+                        - type
                       client:
                         type: object
                         properties:
@@ -8653,6 +9767,7 @@ paths:
                     - amount
                     - currency
                     - payment_status
+                    - trial
                     - created_at
                     - covered_by
                     - client
@@ -9148,6 +10263,10 @@ paths:
                           type: 'null'
                         coach_name:
                           type: 'null'
+                        individual:
+                          type: boolean
+                        space_name:
+                          type: 'null'
                         starts_at:
                           type: string
                         ends_at:
@@ -9166,6 +10285,8 @@ paths:
                       - activity_name
                       - activity_emoji
                       - coach_name
+                      - individual
+                      - space_name
                       - starts_at
                       - ends_at
                       - capacity
@@ -9811,6 +10932,447 @@ paths:
                     type: string
                 required:
                 - error
+  "/api/v1/packs":
+    get:
+      summary: index
+      tags:
+      - Api::V1::Pack
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  packs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: 'null'
+                        active:
+                          type: boolean
+                        currency:
+                          type: string
+                        activity_ids:
+                          type: array
+                          items:
+                            type: string
+                        activities:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                              emoji:
+                                type: 'null'
+                            required:
+                            - id
+                            - name
+                            - emoji
+                        prices:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              contract_type_id:
+                                type: string
+                              contract_type_name:
+                                type: string
+                              billing_period:
+                                type: string
+                              validity_days:
+                                type: 'null'
+                              price:
+                                type: string
+                            required:
+                            - contract_type_id
+                            - contract_type_name
+                            - billing_period
+                            - validity_days
+                            - price
+                      required:
+                      - id
+                      - name
+                      - description
+                      - active
+                      - currency
+                      - activity_ids
+                      - activities
+                      - prices
+                required:
+                - packs
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '402':
+          description: Payment Required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                - error
+                - message
+    post:
+      summary: create
+      tags:
+      - Api::V1::Pack
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                pack:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                activity_ids:
+                  type: array
+                  items:
+                    type: string
+              required:
+              - pack
+              - activity_ids
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pack:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: 'null'
+                      active:
+                        type: boolean
+                      currency:
+                        type: string
+                      activity_ids:
+                        type: array
+                        items:
+                          type: string
+                      activities:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            emoji:
+                              type: 'null'
+                          required:
+                          - id
+                          - name
+                          - emoji
+                      prices:
+                        type: array
+                        items: {}
+                    required:
+                    - id
+                    - name
+                    - description
+                    - active
+                    - currency
+                    - activity_ids
+                    - activities
+                    - prices
+                required:
+                - pack
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
+  "/api/v1/packs/{id}":
+    delete:
+      summary: destroy
+      tags:
+      - Api::V1::Pack
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pack:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: 'null'
+                      active:
+                        type: boolean
+                      currency:
+                        type: string
+                      activity_ids:
+                        type: array
+                        items:
+                          type: string
+                      activities:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            emoji:
+                              type: 'null'
+                          required:
+                          - id
+                          - name
+                          - emoji
+                      prices:
+                        type: array
+                        items: {}
+                    required:
+                    - id
+                    - name
+                    - description
+                    - active
+                    - currency
+                    - activity_ids
+                    - activities
+                    - prices
+                required:
+                - pack
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+    patch:
+      summary: update
+      tags:
+      - Api::V1::Pack
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                pack:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    description:
+                      type: string
+                activity_ids:
+                  type: array
+                  items:
+                    type: string
+              required:
+              - pack
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pack:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type:
+                        - string
+                        - 'null'
+                      active:
+                        type: boolean
+                      currency:
+                        type: string
+                      activity_ids:
+                        type: array
+                        items:
+                          type: string
+                      activities:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            emoji:
+                              type: 'null'
+                          required:
+                          - id
+                          - name
+                          - emoji
+                      prices:
+                        type: array
+                        items: {}
+                    required:
+                    - id
+                    - name
+                    - description
+                    - active
+                    - currency
+                    - activity_ids
+                    - activities
+                    - prices
+                required:
+                - pack
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
+    put:
+      summary: update
+      tags:
+      - Api::V1::Pack
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                - error
   "/api/v1/password_resets":
     post:
       summary: create
@@ -10162,13 +11724,13 @@ paths:
                   type: string
                 payment_method:
                   type: string
-                contract_period_id:
+                contract_id:
                   type: string
               required:
               - client_id
               - amount
               - payment_method
-              - contract_period_id
+              - contract_id
   "/api/v1/payments/{id}":
     get:
       summary: show
@@ -10342,6 +11904,10 @@ paths:
                           type: 'null'
                         coach_name:
                           type: 'null'
+                        space_id:
+                          type: 'null'
+                        space_name:
+                          type: 'null'
                         weekdays:
                           type: array
                           items:
@@ -10364,6 +11930,8 @@ paths:
                       - activity_name
                       - coach_id
                       - coach_name
+                      - space_id
+                      - space_name
                       - weekdays
                       - start_time
                       - recurrence_type
@@ -10414,6 +11982,73 @@ paths:
       tags:
       - Api::V1::RecurringSchedule
       responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recurring_schedule:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      activity_id:
+                        type: string
+                      activity_name:
+                        type: string
+                      coach_id:
+                        type: 'null'
+                      coach_name:
+                        type: 'null'
+                      space_id:
+                        type: string
+                      space_name:
+                        type: string
+                      weekdays:
+                        type: array
+                        items:
+                          type: integer
+                      start_time:
+                        type: string
+                      recurrence_type:
+                        type: string
+                      starts_on:
+                        type: string
+                      ends_on:
+                        type: string
+                      active:
+                        type: boolean
+                      generated_sessions_count:
+                        type: integer
+                    required:
+                    - id
+                    - activity_id
+                    - activity_name
+                    - coach_id
+                    - coach_name
+                    - space_id
+                    - space_name
+                    - weekdays
+                    - start_time
+                    - recurrence_type
+                    - starts_on
+                    - ends_on
+                    - active
+                    - generated_sessions_count
+                  generated:
+                    type: integer
+                  skipped:
+                    type: integer
+                  conflicts:
+                    type: array
+                    items: {}
+                required:
+                - recurring_schedule
+                - generated
+                - skipped
+                - conflicts
         '401':
           description: Unauthorized
           content:
@@ -10436,6 +12071,57 @@ paths:
                     type: string
                 required:
                 - error
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                - error
+                - errors
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                recurring_schedule:
+                  type: object
+                  properties:
+                    activity_id:
+                      type: string
+                    space_id:
+                      type: string
+                    weekdays:
+                      type: array
+                      items:
+                        type: string
+                    start_time:
+                      type: string
+                    recurrence_type:
+                      type: string
+                    starts_on:
+                      type: string
+                    ends_on:
+                      type: string
+                  required:
+                  - activity_id
+                  - space_id
+                  - weekdays
+                  - start_time
+                  - recurrence_type
+                  - starts_on
+                  - ends_on
+              required:
+              - recurring_schedule
   "/api/v1/recurring_schedules/{id}":
     patch:
       summary: update
@@ -10881,6 +12567,12 @@ paths:
                           type:
                           - string
                           - 'null'
+                        space_id:
+                          type: 'null'
+                        space_name:
+                          type: 'null'
+                        individual:
+                          type: boolean
                         recurring_schedule_id:
                           type: 'null'
                         starts_at:
@@ -10906,6 +12598,9 @@ paths:
                       - company_name
                       - coach_id
                       - coach_name
+                      - space_id
+                      - space_name
+                      - individual
                       - recurring_schedule_id
                       - starts_at
                       - ends_at
@@ -10979,6 +12674,8 @@ paths:
                       type: string
                     client_id:
                       type: string
+                    trial:
+                      type: string
                   required:
                   - activity_id
                   - starts_at
@@ -11012,6 +12709,12 @@ paths:
                         type: 'null'
                       coach_name:
                         type: 'null'
+                      space_id:
+                        type: 'null'
+                      space_name:
+                        type: 'null'
+                      individual:
+                        type: boolean
                       recurring_schedule_id:
                         type: 'null'
                       starts_at:
@@ -11037,6 +12740,9 @@ paths:
                     - company_name
                     - coach_id
                     - coach_name
+                    - space_id
+                    - space_name
+                    - individual
                     - recurring_schedule_id
                     - starts_at
                     - ends_at
@@ -12159,6 +13865,8 @@ paths:
                         type: string
                       member_app:
                         type: boolean
+                      multi_salle:
+                        type: boolean
                       lock_reason:
                         type:
                         - string
@@ -12179,14 +13887,13 @@ paths:
                         type:
                         - integer
                         - 'null'
-                      multi_salle:
-                        type: boolean
                     required:
                     - id
                     - active
                     - billing_period
                     - plan
                     - member_app
+                    - multi_salle
                     - lock_reason
                     - paid_through
                     - current_period_paid
@@ -12285,7 +13992,7 @@ paths:
                       bank_name:
                         type: string
                       holder:
-                        type: 'null'
+                        type: string
                       swift:
                         type: 'null'
                       reference:
@@ -12646,6 +14353,8 @@ paths:
                               type: string
                             member_app:
                               type: boolean
+                            multi_salle:
+                              type: boolean
                             lock_reason:
                               type:
                               - string
@@ -12660,14 +14369,13 @@ paths:
                               type: boolean
                             trial_days_left:
                               type: 'null'
-                            multi_salle:
-                              type: boolean
                           required:
                           - id
                           - active
                           - billing_period
                           - plan
                           - member_app
+                          - multi_salle
                           - lock_reason
                           - paid_through
                           - current_period_paid
@@ -12897,6 +14605,8 @@ paths:
                             type: string
                           member_app:
                             type: boolean
+                          multi_salle:
+                            type: boolean
                           lock_reason:
                             type: 'null'
                           paid_through:
@@ -12909,14 +14619,13 @@ paths:
                             type: boolean
                           trial_days_left:
                             type: 'null'
-                          multi_salle:
-                            type: boolean
                         required:
                         - id
                         - active
                         - billing_period
                         - plan
                         - member_app
+                        - multi_salle
                         - lock_reason
                         - paid_through
                         - current_period_paid
@@ -13307,6 +15016,8 @@ paths:
                             type: string
                           member_app:
                             type: boolean
+                          multi_salle:
+                            type: boolean
                           lock_reason:
                             type: 'null'
                           paid_through:
@@ -13321,14 +15032,13 @@ paths:
                             type: boolean
                           trial_days_left:
                             type: 'null'
-                          multi_salle:
-                            type: boolean
                         required:
                         - id
                         - active
                         - billing_period
                         - plan
                         - member_app
+                        - multi_salle
                         - lock_reason
                         - paid_through
                         - current_period_paid
@@ -13525,6 +15235,8 @@ paths:
                             type: string
                           member_app:
                             type: boolean
+                          multi_salle:
+                            type: boolean
                           lock_reason:
                             type: 'null'
                           paid_through:
@@ -13537,14 +15249,13 @@ paths:
                             type: boolean
                           trial_days_left:
                             type: 'null'
-                          multi_salle:
-                            type: boolean
                         required:
                         - id
                         - active
                         - billing_period
                         - plan
                         - member_app
+                        - multi_salle
                         - lock_reason
                         - paid_through
                         - current_period_paid
@@ -13932,6 +15643,8 @@ paths:
                             type: string
                           member_app:
                             type: boolean
+                          multi_salle:
+                            type: boolean
                           lock_reason:
                             type:
                             - string
@@ -13950,14 +15663,13 @@ paths:
                             type:
                             - integer
                             - 'null'
-                          multi_salle:
-                            type: boolean
                         required:
                         - id
                         - active
                         - billing_period
                         - plan
                         - member_app
+                        - multi_salle
                         - lock_reason
                         - paid_through
                         - current_period_paid

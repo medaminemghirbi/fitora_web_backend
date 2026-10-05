@@ -8,7 +8,7 @@ class SpaController < ActionController::API
     if index_html.file?
       send_file index_html, type: "text/html", disposition: "inline"
     else
-      render json: { service: "gymly-api", spa: "not built in this environment" }, status: :ok
+      render json: { service: "fitora-api", spa: "not built in this environment" }, status: :ok
     end
   end
 end

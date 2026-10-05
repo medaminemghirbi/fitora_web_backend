@@ -16,6 +16,8 @@ class Session < ApplicationRecord
   # once. The database is the real guard; #explain_coach_overlap only turns
   # its refusal into an error on the form rather than a 500.
   COACH_OVERLAP_CONSTRAINT = "no_overlapping_coach_sessions".freeze
+  # Its twin for rooms: one session per cabin or studio at a time.
+  SPACE_OVERLAP_CONSTRAINT = "no_overlapping_space_sessions".freeze
 
   around_save :explain_coach_overlap
 
@@ -55,7 +57,13 @@ class Session < ApplicationRecord
   #
   # When the session is full and the gym runs a queue, the booking is a
   # place in line (waitlisted), not a seat.
-  def book!(client, by: :staff)
+  #
+  # `drop_in:` / `trial:` are the desk booking someone with no contract — a
+  # single session to pay on the spot, or a free first session (one per
+  # person per gym). Only staff can, only when the gym allows it
+  # (FEATURES[:drop_in]), and only when no contract already covers the
+  # session: a member with credit spends their credit.
+  def book!(client, by: :staff, drop_in: false, trial: false)
     transaction do
       # The lock queues a concurrent booking behind this one, so two people
       # can never both take the last seat.
@@ -74,15 +82,18 @@ class Session < ApplicationRecord
       # use than telling them about a contract they would also need.
       raise Refused, "This session is full." if full? && !gym.feature?(:waitlist)
 
-      contract = contract_covering(client, gym)
-      period = contract && contract.contract_periods.lock.find(contract.current_period.id)
-      unless contract&.usable_for?(activity: activity, period: period)
-        raise Refused, "This client needs an active contract to book this activity."
+      # Re-checked on the locked row: a concurrent booking against the same
+      # contract may have spent its last session since it was picked.
+      contract = contract_covering(client, gym)&.lock!
+      unless contract&.usable_for?(activity: activity)
+        return take_drop_in_seat!(client, trial: trial) if by == :staff && (drop_in || trial) && gym.feature?(:drop_in)
+
+        raise Refused, no_contract_refusal(client, gym)
       end
 
       # Full, but this gym runs a queue — and a queue is still only for
       # members entitled to be in the session at all.
-      full? ? join_waitlist!(client, period) : take_seat!(client, contract, period)
+      full? ? join_waitlist!(client, contract) : take_seat!(client, contract)
     end
   rescue ActiveRecord::RecordNotUnique
     raise Refused, "This client already has a booking for this session."
@@ -109,7 +120,7 @@ class Session < ApplicationRecord
     return nil if next_up.nil?
 
     next_up.update!(status: :confirmed, waitlist_position: nil)
-    next_up.contract_period&.contract&.consume_booking!(period: next_up.contract_period)
+    next_up.contract&.consume_booking!
     resequence_queue
     # A seat that came free is only worth having if the member knows.
     notify_member(next_up.client, kind: "waitlist_promoted", subject: next_up, dedup_key: "waitlist_promoted:#{next_up.id}")
@@ -147,9 +158,13 @@ class Session < ApplicationRecord
   def explain_coach_overlap
     yield
   rescue ActiveRecord::StatementInvalid => e
-    raise unless e.message.include?(COACH_OVERLAP_CONSTRAINT)
-
-    errors.add(:base, "Coach already has a session at that time.")
+    if e.message.include?(COACH_OVERLAP_CONSTRAINT)
+      errors.add(:base, "Coach already has a session at that time.")
+    elsif e.message.include?(SPACE_OVERLAP_CONSTRAINT)
+      errors.add(:base, "This room already has a session at that time.")
+    else
+      raise
+    end
     raise ActiveRecord::RecordInvalid, self
   end
 
@@ -167,29 +182,60 @@ class Session < ApplicationRecord
     nil
   end
 
+  # Why someone without a usable contract cannot book — a paused
+  # membership is worth naming, since the fix is to resume it, not sell one.
+  def no_contract_refusal(client, gym)
+    paused = client.contracts.where(company: gym).active.where.not(paused_at: nil).exists?
+    return "This client's membership is paused." if paused
+
+    "This client needs an active contract to book this activity."
+  end
+
+  # A seat with no contract behind it. The session's own price is what is
+  # owed, settled through Payment.collect! like any other booking; a trial
+  # costs nothing and is marked so the studio can see who it converted.
+  def take_drop_in_seat!(client, trial:)
+    raise Refused, "This session is full." if full?
+    if trial && Booking.joins(:session).where(client: client, trial: true, sessions: { company_id: company_id })
+                       .where.not(status: :cancelled).exists?
+      raise Refused, "This client has already had a trial session."
+    end
+
+    amount = trial ? 0 : price.to_f
+    bookings.create!(
+      client: client,
+      status: :confirmed,
+      trial: trial,
+      amount: amount,
+      currency: activity.company.currency,
+      payment_status: amount.zero? ? :paid : :unpaid
+    )
+  end
+
+  # The term in force is spent before a renewal queued behind it.
   def contract_covering(client, gym)
-    client.contracts.joins(:contract_periods).merge(ContractPeriod.currently_active)
-          .where(company: gym).distinct
+    client.contracts.currently_active.where(company: gym)
+          .order(Client::CURRENT_CONTRACT_ORDER)
           .find { |c| c.usable_for?(activity: activity) }
   end
 
-  def take_seat!(client, contract, period)
+  def take_seat!(client, contract)
     booking = bookings.create!(
       client: client,
       status: :confirmed,
       amount: 0,
       currency: activity.company.currency,
       payment_status: :paid,
-      contract_period: period
+      contract: contract
     )
-    contract.consume_booking!(period: period)
+    contract.consume_booking!
     booking
   end
 
   # A place in the queue, not a seat. No credit is spent: the member is only
   # charged a session if the seat actually comes free
   # (#promote_from_waitlist!).
-  def join_waitlist!(client, period)
+  def join_waitlist!(client, contract)
     last = bookings.queued.maximum(:waitlist_position).to_i
 
     bookings.create!(
@@ -199,7 +245,7 @@ class Session < ApplicationRecord
       amount: 0,
       currency: activity.company.currency,
       payment_status: :unpaid,
-      contract_period: period
+      contract: contract
     )
   end
 

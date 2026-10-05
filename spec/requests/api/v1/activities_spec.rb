@@ -35,6 +35,28 @@ RSpec.describe "Api::V1::Activities", type: :request do
     end
   end
 
+  describe "POST /api/v1/activities/adopt" do
+    let(:template) { create(:activity_template, names: { "fr" => "Boxe" }, emoji: "🥊") }
+
+    it "adds the picked templates as the salle's own activities" do
+      post "/api/v1/activities/adopt", params: { activity_template_ids: [ template.id ] }, headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:created)
+      created = response.parsed_body["activities"]
+      expect(created.map { |a| [ a["name"], a["emoji"], a["activity_template_id"] ] }).to eq([ [ "Boxe", "🥊", template.id ] ])
+      expect(company.activities.count).to eq(1)
+    end
+
+    it "forbids a moderator" do
+      moderator = create(:staff_member, company: company, role: :moderator)
+
+      post "/api/v1/activities/adopt", params: { activity_template_ids: [ template.id ] }, headers: auth_headers(moderator.user)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(company.activities).to be_empty
+    end
+  end
+
   describe "POST /api/v1/activities" do
     it "forbids a moderator — editing the catalogue needs the activities capability" do
       moderator = create(:staff_member, company: company, role: :moderator)

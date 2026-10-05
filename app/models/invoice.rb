@@ -1,7 +1,7 @@
-# One period of Gymly access, paid for and recorded.
+# One period of Fitora access, paid for and recorded.
 #
 # Payment happens off-app, so an invoice is not a demand — it is the proof
-# that money arrived. A Gymly superadmin confirms it, the invoice is issued, and
+# that money arrived. A Fitora superadmin confirms it, the invoice is issued, and
 # it lands in the admin's account to download. It covers the account — every
 # salle the admin runs — not one gym.
 #

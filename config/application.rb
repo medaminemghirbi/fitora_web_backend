@@ -42,7 +42,7 @@ module Backend
     # Where the Angular app is served. One default, read by the production
     # host list and by every link a mail sends (AccountMailer), so the two
     # can never point at different domains.
-    config.x.app_host = ENV.fetch("APP_HOST", "app.gymly.com")
+    config.x.app_host = ENV.fetch("APP_HOST", "app.fitora.com")
     config.x.frontend_url = ENV.fetch("FRONTEND_URL") do
       Rails.env.production? ? "https://#{config.x.app_host}" : "http://localhost:4200"
     end

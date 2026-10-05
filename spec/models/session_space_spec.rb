@@ -65,12 +65,21 @@ RSpec.describe Session, "in a room" do
                       status: status, starts_at: starts_at, ends_at: ends_at)
     end
 
-    it "refuses two scheduled sessions in the same room at the same time" do
+    it "refuses two scheduled sessions in the same room at the same time, as a form error" do
       session_in_room(space, starts_at: start, ends_at: start + 1.hour)
 
       expect {
         session_in_room(space, starts_at: start + 30.minutes, ends_at: start + 90.minutes)
-      }.to raise_error(ActiveRecord::StatementInvalid, /no_overlapping_space_sessions/)
+      }.to raise_error(ActiveRecord::RecordInvalid, /This room already has a session at that time/)
+    end
+
+    it "makes a plain save answer false rather than raise" do
+      session_in_room(space, starts_at: start, ends_at: start + 1.hour)
+      clash = Session.new(company: company, activity: activity, space: space, capacity: 5, price: 10,
+                          status: :scheduled, starts_at: start + 30.minutes, ends_at: start + 90.minutes)
+
+      expect(clash.save).to be(false)
+      expect(clash.errors[:base]).to include("This room already has a session at that time.")
     end
 
     it "allows back-to-back sessions in one room" do

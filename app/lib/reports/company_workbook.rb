@@ -59,7 +59,7 @@ module Reports
 
     def build_summary_sheet
       package.workbook.add_worksheet(name: "Résumé") do |sheet|
-        sheet.add_row [ "Rapport Gymly — #{company.name}" ], style: title_style
+        sheet.add_row [ "Rapport Fitora — #{company.name}" ], style: title_style
         sheet.add_row [ "Période : #{period.label}" ]
         sheet.add_row [ "Généré le : #{Time.current.strftime('%d/%m/%Y %H:%M')}" ]
         sheet.add_row []
@@ -80,8 +80,8 @@ module Reports
         [ "  dont autre", revenue_by_method["other"] || 0 ],
         [ "Clients actifs", company.memberships.active.count ],
         [ "Clients inactifs", company.memberships.where(active: false).count ],
-        [ "Abonnements actifs", company.contract_periods.currently_active.count ],
-        [ "Abonnements expirés", company.contract_periods.expired.count ],
+        [ "Abonnements actifs", company.contracts.in_force.count ],
+        [ "Abonnements expirés", company.contracts.expired.count ],
         [ "Membres d'équipe", company.staff_members.count ]
       ]
     end

@@ -16,7 +16,7 @@ namespace :backup do
     abort("No such file: #{file}") unless File.exist?(file)
 
     config = ActiveRecord::Base.connection_db_config.configuration_hash
-    scratch = "gymly_restore_check_#{Time.current.strftime('%Y%m%d%H%M%S')}"
+    scratch = "fitora_restore_check_#{Time.current.strftime('%Y%m%d%H%M%S')}"
     pg_env = {
       "PGHOST" => config[:host].to_s, "PGPORT" => config[:port].to_s,
       "PGUSER" => config[:username].to_s, "PGPASSWORD" => config[:password].to_s

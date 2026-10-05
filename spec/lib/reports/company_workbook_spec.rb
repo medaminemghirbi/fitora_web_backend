@@ -10,14 +10,13 @@ RSpec.describe Reports::CompanyWorkbook do
 
     plan = create(:contract_type, company: company, price: 100)
     contract = create(:contract, client: client_active, contract_type: plan)
-    period_record = contract.current_period
 
-    create(:payment, company: company, client: client_active, contract_period: period_record,
+    create(:payment, company: company, client: client_active, contract: contract,
                       amount: 60, payment_method: :cash, status: :paid, paid_at: Time.zone.local(2025, 3, 10))
-    create(:payment, company: company, client: client_active, contract_period: period_record,
+    create(:payment, company: company, client: client_active, contract: contract,
                       amount: 40, payment_method: :bank_transfer, status: :paid, paid_at: Time.zone.local(2025, 3, 15))
     # Outside the requested period — must not be counted anywhere.
-    create(:payment, company: company, client: client_active, contract_period: period_record,
+    create(:payment, company: company, client: client_active, contract: contract,
                       amount: 999, payment_method: :cash, status: :paid, paid_at: Time.zone.local(2025, 2, 1))
 
     package = described_class.call(company: company, period: period)
@@ -27,7 +26,7 @@ RSpec.describe Reports::CompanyWorkbook do
     expect(sheets.map(&:name)).to eq(%w[Résumé Clients])
 
     summary = sheets.find { |s| s.name == "Résumé" }
-    expect(summary.rows.first.cells.first.value).to eq("Rapport Gymly — Studio Test")
+    expect(summary.rows.first.cells.first.value).to eq("Rapport Fitora — Studio Test")
     expect(summary.rows[1].cells.first.value).to eq("Période : #{period.label}")
 
     revenue_row = summary.rows.find { |r| r.cells[0]&.value == "Revenu total" }

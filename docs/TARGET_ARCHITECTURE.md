@@ -1,4 +1,4 @@
-# Gymly — Target Architecture
+# Fitora — Target Architecture
 
 Companion to `CURRENT_ARCHITECTURE.md`. Written 2026-09-19.
 
@@ -10,7 +10,7 @@ These were decided explicitly and are not open:
 |---|---|---|
 | Backend strategy | **Full rewrite of the domain layer** | Models, services, controllers and serializers are rebuilt against a redesigned schema. Data migrates forward (see `MIGRATION_PLAN.md`). |
 | Spaces | **Optional per company** | `spaces` exists; a company turns it on in settings. Session creation only asks for a room when it is on. |
-| Naming | **Keep `Contract` / `ContractType` / `ContractPeriod`** | No rename pass. The product still *says* "plan" and "subscription" in the UI; the domain keeps its current words. `Subscription` continues to mean the gym's own SaaS subscription to Gymly. |
+| Naming | **Keep `Contract` / `ContractType`** (`ContractPeriod` was folded into `Contract` on 2026-10-05 — a contract is one term, a renewal is a new contract) | No rename pass. The product still *says* "plan" and "subscription" in the UI; the domain keeps its current words. `Subscription` continues to mean the gym's own SaaS subscription to Fitora. |
 | UI | **Full redesign of every screen** | All four existing shells are rebuilt, plus a new moderator shell. |
 | Business logic (2026-10-02) | **On the models, no service layer** | Each rule is a model method (`Session#book!`, `Contract.sell!`, …); controllers read like CRUD. Supersedes the "services" layer in §1 and §4 as first written. |
 
@@ -21,7 +21,7 @@ cheaply reproduce:
 1. `sessions` GiST exclusion on `coach_id + tsrange(starts_at, ends_at)` — a
    coach cannot be in two scheduled places at once.
 2. `bookings` partial unique index on `(session_id, client_id) where status = held`.
-3. `contract_periods` check constraint `remaining_bookings >= 0`.
+3. `contracts` check constraint `remaining_bookings >= 0` (was on `contract_periods`).
 
 To which the rewrite adds a fourth, for spaces (§3.2).
 

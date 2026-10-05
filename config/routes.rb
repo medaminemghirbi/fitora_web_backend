@@ -8,7 +8,7 @@ Rails.application.routes.draw do
   # else, and only mounted at all once SIDEKIQ_WEB_PASSWORD is set.
   unless Rails.env.development?
     Sidekiq::Web.use Rack::Auth::Basic do |user, password|
-      expected_user = ENV.fetch("SIDEKIQ_WEB_USER", "gymly")
+      expected_user = ENV.fetch("SIDEKIQ_WEB_USER", "fitora")
       expected_pass = ENV["SIDEKIQ_WEB_PASSWORD"].to_s
       expected_pass.present? &&
         ActiveSupport::SecurityUtils.secure_compare(::Digest::SHA256.hexdigest(user), ::Digest::SHA256.hexdigest(expected_user)) &
@@ -61,7 +61,12 @@ Rails.application.routes.draw do
         post :skip
         post :dismiss
       end
-      resources :activities
+      resources :activities do
+        collection { post :adopt }
+      end
+      # The platform's catalogue a salle picks its activities from — readable
+      # before the salle exists, at signup.
+      resources :activity_templates, only: [ :index ]
       resources :spaces
       resources :coaches do
         member do
@@ -96,11 +101,15 @@ Rails.application.routes.draw do
       resources :invoices, only: [ :index, :show ]
 
       resources :contract_types, only: [ :index, :show, :create, :update ]
+      resources :packs, only: [ :index, :create, :update, :destroy ]
       resources :contracts, only: [ :index, :show, :create, :update, :destroy ] do
         member do
           post :renew
           post :cancel
+          post :pause
+          post :resume
           get :receipt
+          get :agreement
         end
       end
       resources :payments, only: [ :index, :show, :create ] do
@@ -127,7 +136,7 @@ Rails.application.routes.draw do
       # the member's own record (Api::V1::ClientsController#update).
       namespace :me do
         resource :profile, only: [ :show, :update ]
-        # Leaving Gymly altogether — see Client#anonymise!.
+        # Leaving Fitora altogether — see Client#anonymise!.
         resource :account, only: [ :destroy ]
         resources :notifications, only: [ :index, :show ] do
           member { patch :read }

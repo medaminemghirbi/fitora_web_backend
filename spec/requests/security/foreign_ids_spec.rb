@@ -6,7 +6,7 @@ require "rails_helper"
 # supplying one of its ids, and each is refused for a different reason:
 # a scoped lookup, or a model validation.
 #
-# These are the cases the Gymly/UnscopedTenantQuery cop cannot see, because
+# These are the cases the Fitora/UnscopedTenantQuery cop cannot see, because
 # nothing here is a bare `Model.find` — the id arrives inside a nested write.
 RSpec.describe "Security: foreign ids in nested writes", type: :request do
   let(:admin) { create(:user, :admin) }
@@ -18,7 +18,7 @@ RSpec.describe "Security: foreign ids in nested writes", type: :request do
       theirs = create(:coach, company: other_company)
 
       post "/api/v1/staff",
-           params: { staff_member: { first_name: "A", last_name: "B", email: "ab@gymly.test",
+           params: { staff_member: { first_name: "A", last_name: "B", email: "ab@fitora.test",
                                      password: "password123", role: "coach", coach_id: theirs.id } },
            headers: auth_headers(admin)
 
@@ -30,7 +30,7 @@ RSpec.describe "Security: foreign ids in nested writes", type: :request do
       theirs = other_company.roles.find_by(key: "moderator")
 
       post "/api/v1/staff",
-           params: { staff_member: { first_name: "A", last_name: "B", email: "ab2@gymly.test",
+           params: { staff_member: { first_name: "A", last_name: "B", email: "ab2@fitora.test",
                                      password: "password123", role_id: theirs.id } },
            headers: auth_headers(admin)
 
@@ -41,7 +41,7 @@ RSpec.describe "Security: foreign ids in nested writes", type: :request do
 
     it "refuses an unknown role key rather than creating a seat with no role" do
       post "/api/v1/staff",
-           params: { staff_member: { first_name: "A", last_name: "B", email: "ab3@gymly.test",
+           params: { staff_member: { first_name: "A", last_name: "B", email: "ab3@fitora.test",
                                      password: "password123", role: "sorcerer" } },
            headers: auth_headers(admin)
 
