@@ -19,7 +19,8 @@ RSpec.describe "List pages do not query per row", type: :request do
       create(:booking, client: member, session: session)
       create(:payment, client: member, contract: contract)
       create(:coach, company: company)
-      create(:staff_member, company: company, role: :moderator)
+      # Coach logins: a salle holds one moderator at most, coaches are uncapped.
+      create(:staff_member, company: company, role: :coach)
     end
   end
 

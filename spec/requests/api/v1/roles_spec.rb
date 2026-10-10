@@ -2,7 +2,8 @@ require "rails_helper"
 
 RSpec.describe "Api::V1::Roles", type: :request do
   let(:admin) { create(:user, :admin) }
-  let!(:company) { create(:company, admin: admin) }
+  # Pro's tool (Subscription#pro_features?); Starter's refusal is below.
+  let!(:company) { create(:company, :pro, admin: admin) }
 
   describe "GET /api/v1/roles" do
     it "returns the company's roles plus the permission catalogue" do
@@ -22,6 +23,23 @@ RSpec.describe "Api::V1::Roles", type: :request do
 
       get "/api/v1/roles", headers: auth_headers(staff.user)
 
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe "on Starter" do
+    before { company.subscription.update!(plan: :starter) }
+
+    it "still lists the roles (the team page assigns them) but refuses to shape them" do
+      get "/api/v1/roles", headers: auth_headers(admin)
+      expect(response).to have_http_status(:ok)
+
+      post "/api/v1/roles", params: { role: { name: "Comptable", permissions: [ "payments" ] } }, headers: auth_headers(admin)
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["error"]).to eq("pro_required")
+
+      moderator = company.roles.find_by!(key: "moderator")
+      patch "/api/v1/roles/#{moderator.id}", params: { role: { permissions: [ "clients" ] } }, headers: auth_headers(admin)
       expect(response).to have_http_status(:forbidden)
     end
   end

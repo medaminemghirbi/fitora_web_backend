@@ -48,7 +48,8 @@ RSpec.describe "Api::V1::Clients", type: :request do
 
     it "filters by contract_active status" do
       with_contract = create(:client, company: company)
-      create(:contract, client: with_contract, company: company, status: :active, expires_at: 10.days.from_now)
+      create(:contract, client: with_contract, contract_type: create(:contract_type, company: company),
+                        status: :active, expires_at: 10.days.from_now)
       without_contract = create(:client, company: company)
 
       get "/api/v1/clients", params: { status: "contract_active" }, headers: auth_headers(admin)

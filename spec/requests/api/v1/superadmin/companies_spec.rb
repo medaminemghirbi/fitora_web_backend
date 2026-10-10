@@ -309,6 +309,34 @@ RSpec.describe "Api::V1::Superadmin::Companies", type: :request do
     end
   end
 
+  describe "a fresh account" do
+    let(:company) { create(:company) }
+
+    before { Subscription.start_trial!(company.admin, currency: "TND") }
+
+    it "shows no plan and prices no invoice until one is chosen" do
+      get "/api/v1/superadmin/companies/#{company.id}", headers: auth_headers(superadmin)
+
+      body = response.parsed_body["company"]
+      expect(body["plan"]).to be_nil
+      expect(body["subscription"]).to include("plan" => nil, "billing_period" => nil, "trial" => true)
+      expect(body["next_invoice"]["amount_cents"]).to be_nil
+    end
+
+    it "refuses to record a payment until a plan is chosen, then records it" do
+      post "/api/v1/superadmin/companies/#{company.id}/invoices", headers: auth_headers(superadmin)
+      expect(response).to have_http_status(:unprocessable_content)
+
+      patch "/api/v1/superadmin/companies/#{company.id}/subscription",
+            params: { plan: "pro" }, headers: auth_headers(superadmin)
+      post "/api/v1/superadmin/companies/#{company.id}/invoices", headers: auth_headers(superadmin)
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body["invoice"]["plan"]).to eq("pro")
+      expect(response.parsed_body["company"]["subscription"]["trial"]).to be(false)
+    end
+  end
+
   describe "GET /api/v1/superadmin/companies?closed=1" do
     it "narrows to the gyms whose access is shut, and counts them either way" do
       create(:subscription, company: create(:company, name: "Ouverte"))

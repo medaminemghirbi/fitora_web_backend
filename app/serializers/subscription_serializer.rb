@@ -15,6 +15,9 @@ class SubscriptionSerializer
       plan: subscription.plan,
       member_app: subscription.member_app?,
       multi_salle: subscription.multi_salle?,
+      # Pro's tools (several salles, custom roles, branding, CSV import /
+      # export): a paid Pro period only — locked during the free trial.
+      pro_features: subscription.pro_features?,
       lock_reason: subscription.lock_reason,
       # What the invoices say, for the screens that show a countdown.
       paid_through: subscription.paid_through,

@@ -19,6 +19,7 @@ class RecurringSchedule < ApplicationRecord
   validates :starts_on, :ends_on, presence: true
   validate :activity_belongs_to_company
   validate :space_belongs_to_company
+  validate :coach_belongs_to_company
   validate :ends_after_starts
   validate :weekdays_are_valid
 
@@ -114,6 +115,14 @@ class RecurringSchedule < ApplicationRecord
     return if space.blank? || company.blank?
 
     errors.add(:space, "must belong to this gym") if space.company != company
+  end
+
+  # coach_id comes straight from the request; without this a series could
+  # name another gym's coach (and serialise their name back).
+  def coach_belongs_to_company
+    return if coach.blank? || company.blank?
+
+    errors.add(:coach, "must belong to this gym") if coach.company != company
   end
 
   def ends_after_starts

@@ -6,6 +6,9 @@ module Api
       before_action :require_admin!, except: [ :index, :switch ]
       before_action :set_workplace, only: [ :switch ]
       before_action :set_owned_company, only: [ :update_moderators ]
+      # Several salles — the "Mes salles" page, its moderators, and moving
+      # between salles — are Pro's. Starter and the free trial run one.
+      before_action :require_pro!, only: [ :network, :update_moderators, :switch ]
 
       # GET /api/v1/company — the admin's currently ACTIVE company (see
       # #switch). Everything else in the API (current_company) follows
@@ -32,7 +35,7 @@ module Api
       end
 
       # POST /api/v1/companies — the admin's first salle, or another under
-      # the same login: on Pro (or the trial) as many as they like, at one
+      # the same login: on a paid Pro account as many as they like, at one
       # price however many salles it covers; Starter runs one. Becomes the
       # active company immediately.
       def create
@@ -61,7 +64,11 @@ module Api
         # an empty file.
         current_company.signature.purge if ActiveModel::Type::Boolean.new.cast(params.dig(:company, :remove_signature))
 
-        if current_company.update(company_params.except(:currency))
+        # Branding (logo, colour, identifier) is a Pro tool. On Starter it is
+        # dropped rather than refused, so the rest of the form still saves.
+        attrs = company_params(branding: current_company.pro_features?).except(:currency)
+
+        if current_company.update(attrs)
           render json: { company: CompanySerializer.new(current_company).as_json }
         else
           render_errors(current_company)
@@ -114,8 +121,9 @@ module Api
             {
               id: user.id,
               full_name: user.full_name,
-              email: user.email,
+              email: EmailMask.call(user.email),
               role_name: first.assigned_role.name,
+              role_key: first.assigned_role.key,
               active: records.any?(&:active?),
               company_ids: records.map(&:company_id)
             }
@@ -128,7 +136,9 @@ module Api
         params.fetch(:custom_activities, []).map { |entry| entry.permit(:name, :emoji) }
       end
 
-      def company_params
+      # branding: false leaves out the logo, the colour and the identifier —
+      # Starter's update (see #update).
+      def company_params(branding: true)
         permitted = params.require(:company).permit(
           :name, :description, :phone, :email, :country, :city,
           :address, :latitude, :longitude, :timezone, :currency,
@@ -146,6 +156,11 @@ module Api
             { branding: CompanySettings::BRANDING.keys }
           ]
         )
+
+        unless branding
+          permitted = permitted.except(:slug, :logo, :primary_color)
+          permitted[:settings] = permitted[:settings].except(:branding) if permitted[:settings]
+        end
 
         fold_legacy_settings_keys(permitted)
       end

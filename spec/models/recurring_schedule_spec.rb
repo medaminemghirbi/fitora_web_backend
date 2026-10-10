@@ -56,4 +56,20 @@ RSpec.describe RecurringSchedule do
       expect(RecurringSchedule.active).not_to include(inactive)
     end
   end
+
+  describe "coach boundary" do
+    it "rejects another gym's coach" do
+      schedule = build(:recurring_schedule, coach: create(:coach))
+
+      expect(schedule).not_to be_valid
+      expect(schedule.errors[:coach]).to include("must belong to this gym")
+    end
+
+    it "accepts its own gym's coach" do
+      activity = create(:activity)
+      schedule = build(:recurring_schedule, activity: activity, coach: create(:coach, company: activity.company))
+
+      expect(schedule).to be_valid
+    end
+  end
 end

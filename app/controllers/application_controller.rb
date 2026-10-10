@@ -28,12 +28,36 @@ class ApplicationController < ActionController::API
         # An impersonation whose superadmin is gone, or no longer a superadmin, is over.
         @current_user = nil if @current_impersonator.nil?
       end
-      render_unauthorized if @current_user.nil?
+      return render_unauthorized if @current_user.nil?
+
+      apply_company_header!
     end
 
     tag_sentry_context!
   rescue JwtService::DecodeError
     render_unauthorized
+  end
+
+  # The salle a request is for, when the browser tab names one
+  # (X-Company-Id). Each tab keeps its own, so switching salle in one tab
+  # never redirects what another is in the middle of writing — which a
+  # single users.active_company_id did, impersonation included.
+  #
+  # Never trusted: checked against this login's own workplaces on every
+  # request, and refused outright (not silently replaced) when it is not
+  # one of them. Applied in memory only, so active_company_id stays the
+  # last-used salle a fresh tab or a new login starts from; current_company
+  # and staff_member both follow it from here.
+  def apply_company_header!
+    id = request.headers["X-Company-Id"].presence
+    return if id.nil? || @current_user.superadmin?
+
+    company = @current_user.workplaces.find_by(id: id)
+    if company
+      @current_user.active_company_id = company.id
+    else
+      render json: { error: "company_not_accessible" }, status: :forbidden
+    end
   end
 
   # Attaches whoever a request is for to any error Sentry captures during

@@ -26,6 +26,7 @@ RSpec.describe Receipts::ContractAgreementPdf do
   end
 
   it "prints the gym's logo" do
+    create(:subscription, :pro, company: company)
     company.logo.attach(fixture_file_upload("sample.png", "image/png"))
 
     expect(images_in(described_class.call(contract: contract.reload))).to be > 0

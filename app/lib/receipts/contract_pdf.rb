@@ -57,7 +57,7 @@ module Receipts
       half = pdf.bounds.width / 2
 
       name_top = top
-      if (logo = PrintableImage.io(company.logo))
+      if (logo = PrintableImage.io(company.brand_logo))
         pdf.image logo, at: [ 0, top ], fit: [ 150, 46 ]
         name_top = top - 52
       end

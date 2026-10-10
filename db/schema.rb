@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_06_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_10_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -196,7 +196,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_06_120000) do
     t.boolean "active", default: true, null: false
     t.string "address"
     t.uuid "admin_id", null: false
+    t.string "app_code"
     t.string "city"
+    t.string "coach_key"
     t.text "contract_terms"
     t.string "country"
     t.datetime "created_at", null: false
@@ -215,7 +217,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_06_120000) do
     t.string "timezone", default: "Africa/Tunis", null: false
     t.datetime "updated_at", null: false
     t.index ["admin_id"], name: "index_companies_on_admin_id"
+    t.index ["app_code"], name: "index_companies_on_app_code", unique: true
     t.index ["city"], name: "index_companies_on_city_trgm", opclass: :gin_trgm_ops, using: :gin
+    t.index ["coach_key"], name: "index_companies_on_coach_key", unique: true
     t.index ["name"], name: "index_companies_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["settings"], name: "index_companies_on_settings", using: :gin
     t.index ["slug"], name: "index_companies_on_slug", unique: true
@@ -353,7 +357,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_06_120000) do
     t.string "number", null: false
     t.date "period_end", null: false
     t.date "period_start", null: false
-    t.string "plan", default: "starter", null: false
+    t.string "plan"
     t.uuid "subscription_id", null: false
     t.boolean "trial", default: false, null: false
     t.datetime "updated_at", null: false
@@ -555,7 +559,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_06_120000) do
     t.uuid "admin_id", null: false
     t.integer "billing_period"
     t.datetime "created_at", null: false
-    t.string "plan", default: "starter", null: false
+    t.string "plan"
     t.datetime "updated_at", null: false
     t.index ["admin_id"], name: "index_subscriptions_on_admin_id", unique: true
   end

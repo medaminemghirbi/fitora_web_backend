@@ -29,7 +29,7 @@ class CompanySerializer
       business_hours_end: company.business_hours_end,
       active: company.active,
       slug: company.slug,
-      primary_color: company.primary_color,
+      primary_color: company.brand_color,
       logo_url: logo_url,
       # What every contract PDF is signed with (Settings → Image de marque).
       signature_url: signature_url,
@@ -61,9 +61,11 @@ class CompanySerializer
     Rails.application.routes.url_helpers.rails_blob_path(company.signature, only_path: true)
   end
 
+  # The logo on show: none on Starter (Company#brand_logo).
   def logo_url
-    return nil unless company.logo.attached?
+    logo = company.brand_logo
+    return nil if logo.nil?
 
-    Rails.application.routes.url_helpers.rails_blob_path(company.logo, only_path: true)
+    Rails.application.routes.url_helpers.rails_blob_path(logo, only_path: true)
   end
 end

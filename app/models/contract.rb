@@ -33,6 +33,14 @@ class Contract < ApplicationRecord
   validates :starts_at, presence: true, if: :active?
   validates :discount, numericality: { greater_than_or_equal_to: 0 }
   validate :names_an_activity_or_a_pack
+  # The controllers already look each of these up through current_company;
+  # this is the same boundary held by the model, for every other way a
+  # contract gets written (imports, services, the console). Only on change,
+  # so it never trips over a row it did not write.
+  validate :sold_from_this_gym, if: -> {
+    will_save_change_to_company_id? || will_save_change_to_contract_type_id? ||
+      will_save_change_to_activity_id? || will_save_change_to_pack_id?
+  }
 
   before_validation :compute_final_price
   before_create :assign_invoice_ref
@@ -362,6 +370,14 @@ class Contract < ApplicationRecord
   end
 
   private
+
+  def sold_from_this_gym
+    return if company_id.blank?
+
+    { contract_type: contract_type, activity: activity, pack: pack }.each do |name, record|
+      errors.add(name, "must belong to this gym") if record && record.company_id != company_id
+    end
+  end
 
   def refuse_renewal!
     reason = renewal_refusal

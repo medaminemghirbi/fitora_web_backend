@@ -43,6 +43,21 @@ RSpec.describe "Api::V1::Sessions", type: :request do
   end
 
   describe "GET /api/v1/sessions/schedule_pdf" do
+    # Printing the week is a Pro tool (paid Pro only).
+    before { create(:subscription, :pro, company: company) }
+
+    it "is refused on Starter and during the free trial" do
+      company.subscription.update!(plan: :starter)
+      get "/api/v1/sessions/schedule_pdf", headers: auth_headers(admin)
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["error"]).to eq("pro_required")
+
+      company.subscription.update!(plan: nil)
+      create(:invoice, :trial, company: company)
+      get "/api/v1/sessions/schedule_pdf", headers: auth_headers(admin)
+      expect(response).to have_http_status(:forbidden)
+    end
+
     it "returns a pdf covering the week containing the given date" do
       week_start = Date.current.beginning_of_week(:monday)
       create(:session, activity: activity, company: company, starts_at: week_start.to_time.change(hour: 9))

@@ -5,8 +5,13 @@ module Api
     # DataExchange::REGISTRY for the strategies and the capabilities.
     class DataExchangeController < BaseController
       before_action :require_company!
+      # CSV import / export is a Pro tool.
+      before_action :require_pro!
       before_action :set_strategy!, except: [ :show_import ]
       before_action :set_import!, only: [ :show_import ]
+      # Importing is part of managing an entity; exporting all of it is a
+      # bulk copy of the gym's data, which only the admin takes.
+      before_action :require_admin!, only: :export
 
       # GET /api/v1/data_exchange/:entity/template
       def template

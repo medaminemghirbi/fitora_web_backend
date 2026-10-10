@@ -237,4 +237,22 @@ RSpec.describe Contract do
       expect(running.renew!.invoice_ref).not_to eq(running.invoice_ref)
     end
   end
+
+  describe "gym boundary" do
+    it "rejects a plan from another gym" do
+      contract = create(:contract)
+      contract.contract_type = create(:contract_type)
+
+      expect(contract).not_to be_valid
+      expect(contract.errors[:contract_type]).to include("must belong to this gym")
+    end
+
+    it "rejects an activity from another gym" do
+      contract = create(:contract)
+      contract.activity = create(:activity)
+
+      expect(contract).not_to be_valid
+      expect(contract.errors[:activity]).to include("must belong to this gym")
+    end
+  end
 end

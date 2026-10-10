@@ -24,9 +24,11 @@ class CompanySummarySerializer
 
   attr_reader :company, :active
 
+  # The logo on show: none on Starter (Company#brand_logo).
   def logo_url
-    return nil unless company.logo.attached?
+    logo = company.brand_logo
+    return nil if logo.nil?
 
-    Rails.application.routes.url_helpers.rails_blob_path(company.logo, only_path: true)
+    Rails.application.routes.url_helpers.rails_blob_path(logo, only_path: true)
   end
 end

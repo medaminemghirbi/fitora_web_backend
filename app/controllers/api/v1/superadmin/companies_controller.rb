@@ -123,6 +123,8 @@ module Api
           subscription = @company.subscription
           return render_errors("This gym has no subscription.") if subscription.nil?
 
+          return render_errors("Choose a plan before recording a payment.") if subscription.plan.nil?
+
           invoice = subscription.issue_invoice!(issued_by: current_user, notes: params[:notes].presence)
           AuditLog.record!(
             company: @company, user: current_user, action: "subscription.invoice_issued",

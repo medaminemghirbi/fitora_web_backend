@@ -1,4 +1,5 @@
 class User < ApplicationRecord
+  include UnmaskedEmail
   has_secure_password
   include PasswordResettable
   include EmailVerifiable
@@ -110,7 +111,9 @@ class User < ApplicationRecord
     return [] if superadmin?
     return Permission::ALL if admin?
 
-    (staff_member ? staff_member.permission_keys : []) & Permission::ALL
+    # A deactivated post grants nothing — BaseController#capability? refuses
+    # it anyway, and the menus should not promise otherwise.
+    (staff_member&.active? ? staff_member.permission_keys : []) & Permission::ALL
   end
 
   # The role those permissions came from, as { key:, name: }. The admin's

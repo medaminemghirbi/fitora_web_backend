@@ -117,8 +117,8 @@ module Api
       end
 
       # For a member's login: the gyms whose app they can use — the ones
-      # they belong to whose account includes the member app (Pro, or a
-      # free trial). A Starter gym's members have no app to open.
+      # they belong to whose account includes the member app (a paid Pro
+      # period). A Starter or trial gym's members have no app to open.
       def member_companies
         @member_companies ||= (current_client&.companies&.includes(admin: { subscription: :invoices }) || []).select(&:member_app?)
       end
@@ -135,13 +135,25 @@ module Api
       end
 
       # The member app is a Pro feature: a member none of whose gyms is on
-      # Pro (or trying Fitora) has nothing to open.
+      # a paid Pro period has nothing to open.
       def require_member_app!
         return if member_companies.any?
 
         render json: {
           error: "member_app_not_included",
           message: "Your gym's plan does not include the member app."
+        }, status: :forbidden
+      end
+
+      # Pro's tools (several salles, custom roles, branding, import / export):
+      # open on a paid Pro period, refused on Starter and the trial with a code
+      # the app turns into an upgrade prompt rather than a generic error.
+      def require_pro!
+        return if current_company&.pro_features?
+
+        render json: {
+          error: "pro_required",
+          message: "This feature comes with Fitora Pro."
         }, status: :forbidden
       end
 

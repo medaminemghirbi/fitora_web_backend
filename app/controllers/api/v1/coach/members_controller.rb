@@ -57,7 +57,7 @@ module Api
             id: client.id,
             full_name: client.full_name,
             phone: client.phone,
-            email: client.email,
+            email: EmailMask.call(client.email),
             health_notes: @health[client.id].presence,
             last_seen_at: last_seen_at(client),
             next_session_at: next_session_at(client)

@@ -17,6 +17,8 @@ module Api
         scope = on_day(scope, params[:date]) if params[:date].present?
 
         if params[:format] == "csv"
+          return render_forbidden unless current_user.admin?
+
           send_data bookings_csv(scope), filename: "bookings-#{Date.current}.csv"
         else
           render json: {
@@ -36,13 +38,14 @@ module Api
 
       # POST /api/v1/bookings — staff books a client into a session
       def create
-        return render_forbidden unless BookingPolicy.new(current_user, nil).create?
+        return render_forbidden unless capability?(:bookings)
 
         client = current_company.clients.find_by(id: params[:client_id])
         return render json: { error: "Client not found" }, status: :not_found if client.nil?
 
         session = current_company.sessions.find_by(id: params[:session_id])
         return render json: { error: "Session not found" }, status: :not_found if session.nil?
+        return render_forbidden unless BookingPolicy.new(current_user, Booking.new(session_id: session.id)).create?
 
         booking = session.book!(client, drop_in: truthy?(params[:drop_in]), trial: truthy?(params[:trial]))
         render json: { booking: BookingSerializer.new(booking).as_json }, status: :created

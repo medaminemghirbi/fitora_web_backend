@@ -223,13 +223,13 @@ RSpec.describe "Api::V1::Me", type: :request do
       expect(response.parsed_body["error"]).to eq("member_app_not_included")
     end
 
-    it "opens the app while the account is still on its free trial" do
+    it "keeps the app closed while the account is on its free trial: the app is Pro's" do
       create(:invoice, :trial, company: starter)
 
       post "/api/v1/auth/login", params: { email: starter_member.email, password: "password123" }
 
-      expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["account_type"]).to eq("client")
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["error"]).to eq("member_app_not_included")
     end
 
     it "shows a member of a Pro gym and a Starter gym only the Pro one" do

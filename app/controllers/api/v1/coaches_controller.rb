@@ -10,12 +10,13 @@ module Api
 
       # GET /api/v1/coaches
       def index
-        render json: { coaches: current_company.coaches.includes(:staff_member).order(:first_name).map { |c| CoachSerializer.new(c).as_json } }
+        render json: { coaches: current_company.coaches.includes(staff_member: :user).order(:first_name).map { |c| CoachSerializer.new(c).as_json } }
       end
 
       # GET /api/v1/coaches/:id
       def show
-        render json: { coach: CoachSerializer.new(@coach).as_json }
+        # Whole addresses for the admin's edit forms; masked for everyone else.
+        render json: { coach: CoachSerializer.new(@coach, reveal: current_user.admin?).as_json }
       end
 
       # POST /api/v1/coaches

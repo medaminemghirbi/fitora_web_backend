@@ -14,8 +14,10 @@ class Invoice < ApplicationRecord
 
   enum :billing_period, Subscription::BILLING_PERIODS, prefix: :covers
   # The plan this period was bought on, frozen at issue like the amount.
+  # nil on the trial's free period only: nothing was bought.
   attribute :plan, :string
-  enum :plan, Subscription::PLANS, prefix: :on, validate: true
+  enum :plan, Subscription::PLANS, prefix: :on, validate: { allow_nil: true }
+  validates :plan, presence: true, unless: :trial?
 
   validates :number, presence: true, uniqueness: true
   validates :period_start, :period_end, :issued_at, presence: true

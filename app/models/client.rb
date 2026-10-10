@@ -13,6 +13,7 @@
 # recording an existing email adopts the person instead of duplicating them.
 # Each gym still only ever sees its own membership, contracts and payments.
 class Client < ApplicationRecord
+  include UnmaskedEmail
   include PasswordResettable
   include EmailVerifiable
   include TokenVersioned

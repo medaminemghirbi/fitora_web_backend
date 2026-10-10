@@ -14,14 +14,40 @@ RSpec.describe "Api::V1::Staff", type: :request do
       expect(response.parsed_body["staff_member"]["role_key"]).to eq("moderator")
     end
 
-    it "is never blocked by any staff count — no plans, no limits" do
-      create_list(:staff_member, 5, company: company)
+    it "never caps coaches — any number of them, and still room for the moderator" do
+      create_list(:staff_member, 5, company: company, role: :coach)
 
       post "/api/v1/staff",
            params: { staff_member: { first_name: "Sara", last_name: "Desk", email: "sara@fitora.test", password: "password123", role: "moderator" } },
            headers: auth_headers(admin)
 
       expect(response).to have_http_status(:created)
+    end
+
+    it "refuses a second moderator in the same salle" do
+      create(:staff_member, company: company, role: :moderator)
+
+      expect {
+        post "/api/v1/staff",
+             params: { staff_member: { first_name: "Sara", last_name: "Desk", email: "sara@fitora.test", password: "password123", role: "moderator" } },
+             headers: auth_headers(admin)
+      }.not_to change(User, :count)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["error"]).to eq("This salle already has a moderator.")
+    end
+
+    it "lets a salle that has its moderator add back-office logins on a custom role" do
+      create(:staff_member, company: company, role: :moderator)
+      Role.seed_defaults_for(company)
+      accountant = create(:role, company: company, key: "comptable", name: "Comptable", permissions: %w[payments reports])
+
+      post "/api/v1/staff",
+           params: { staff_member: { first_name: "Sami", last_name: "Compta", email: "sami@fitora.test", password: "password123", role_id: accountant.id } },
+           headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body["staff_member"]["role_key"]).to eq("comptable")
     end
 
     it "forbids a non-admin staff member from creating staff — only the admin manages staff" do

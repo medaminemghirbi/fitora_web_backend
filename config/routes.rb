@@ -55,6 +55,11 @@ Rails.application.routes.draw do
         collection { get :network }
       end
       get "branding", to: "branding#show"
+      # The mobile app's keys (Settings → Application mobile, Pro) and the
+      # public lookup the app makes with one of them before signing in.
+      get "mobile_app", to: "mobile_app#show"
+      post "mobile_app/regenerate", to: "mobile_app#regenerate"
+      get "tenants/:code/app_config", to: "tenants#app_config"
 
       # Resumable first-time setup. Singular: there is one flow per company.
       resource :onboarding, only: [ :show, :update ], controller: "onboarding" do

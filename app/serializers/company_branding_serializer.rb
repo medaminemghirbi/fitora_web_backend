@@ -11,7 +11,7 @@ class CompanyBrandingSerializer
 
     {
       name: company.name,
-      primary_color: company.primary_color,
+      primary_color: company.brand_color,
       logo_url: logo_url,
       # Tenant-wide display settings every member's shell needs: the app
       # language and the currency symbol shown next to amounts.
@@ -25,9 +25,11 @@ class CompanyBrandingSerializer
 
   attr_reader :company
 
+  # The logo on show: none on Starter (Company#brand_logo).
   def logo_url
-    return nil unless company.logo.attached?
+    logo = company.brand_logo
+    return nil if logo.nil?
 
-    Rails.application.routes.url_helpers.rails_blob_path(company.logo, only_path: true)
+    Rails.application.routes.url_helpers.rails_blob_path(logo, only_path: true)
   end
 end

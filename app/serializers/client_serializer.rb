@@ -10,8 +10,11 @@ class ClientSerializer
   # A list passes `membership` and `current_contract` in too, loaded for the
   # whole page at once (see .page_context); on its own a row would look each
   # up itself — a membership and a contract per member.
-  def initialize(client, detailed: false, company: nil, last_visit_at: :unset, membership: :unset, current_contract: :unset)
+  # `reveal`: the whole e-mail address — the person's own session only.
+  # Anyone else gets it masked (EmailMask).
+  def initialize(client, detailed: false, company: nil, last_visit_at: :unset, membership: :unset, current_contract: :unset, reveal: false)
     @client = client
+    @reveal = reveal
     @detailed = detailed
     @company = company
     @membership = membership == :unset ? company && client.membership_for(company) : membership
@@ -40,7 +43,7 @@ class ClientSerializer
       last_name: client.last_name,
       full_name: client.full_name,
       login_enabled: client.login_enabled?,
-      email: client.email,
+      email: @reveal ? client.email : EmailMask.call(client.email),
       phone: client.phone,
       active: membership ? membership.active : client.active,
       joined_at: membership&.joined_at,

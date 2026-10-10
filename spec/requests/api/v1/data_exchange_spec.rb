@@ -2,7 +2,8 @@ require "rails_helper"
 
 RSpec.describe "Api::V1::DataExchange", type: :request do
   let(:admin) { create(:user, :admin) }
-  let!(:company) { create(:company, admin: admin) }
+  # Pro's tool (Subscription#pro_features?); Starter's refusal is below.
+  let!(:company) { create(:company, :pro, admin: admin) }
 
   include ActiveJob::TestHelper
 
@@ -18,6 +19,22 @@ RSpec.describe "Api::V1::DataExchange", type: :request do
     end
     expect(response).to have_http_status(:accepted)
     get "/api/v1/data_exchange/imports/#{response.parsed_body['id']}", headers: auth_headers(admin)
+  end
+
+  describe "on Starter" do
+    it "refuses the template, the export and the import: CSV import / export is Pro's" do
+      company.subscription.update!(plan: :starter)
+
+      get "/api/v1/data_exchange/clients/template", headers: auth_headers(admin)
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["error"]).to eq("pro_required")
+
+      get "/api/v1/data_exchange/clients/export", headers: auth_headers(admin)
+      expect(response).to have_http_status(:forbidden)
+
+      post "/api/v1/data_exchange/clients/import", params: { file: upload("first_name\nX\n") }, headers: auth_headers(admin)
+      expect(response).to have_http_status(:forbidden)
+    end
   end
 
   describe "GET template" do
@@ -221,7 +238,7 @@ RSpec.describe "Api::V1::DataExchange", type: :request do
       import!("clients", "first_name,last_name,email,phone\nA,B,,1\n")
       id = DataImport.last.id
 
-      get "/api/v1/data_exchange/imports/#{id}", headers: auth_headers(create(:company).admin)
+      get "/api/v1/data_exchange/imports/#{id}", headers: auth_headers(create(:company, :pro).admin)
       expect(response).to have_http_status(:not_found)
     end
   end

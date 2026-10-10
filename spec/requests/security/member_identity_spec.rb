@@ -101,6 +101,7 @@ RSpec.describe "A member shared between gyms", type: :request do
   end
 
   it "harvests nothing through a CSV import either" do
+    create(:subscription, :pro, company: gym_b)
     csv = Rack::Test::UploadedFile.new(StringIO.new("first_name,last_name,email,phone\nX,Y,member@example.com,1\n"), "text/csv",
                                        original_filename: "members.csv")
     perform_enqueued_jobs do

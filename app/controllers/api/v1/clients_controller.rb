@@ -3,6 +3,9 @@ module Api
     class ClientsController < BaseController
       before_action :require_company!
       before_action -> { require_capability!(:clients) }
+      # Taking someone off the gym's books (and, for their last gym, erasing
+      # them) is the admin's decision.
+      before_action :require_admin!, only: :destroy
       before_action :set_client, only: [ :show, :update, :invite, :destroy ]
       # This controller's errors also carry `message`, refused or invalid alike.
       rescue_from ApplicationRecord::Refused, with: ->(refusal) { render_error(refusal.message) }
@@ -37,6 +40,9 @@ module Api
         clients = status_scope(narrowed, params[:status]).order(Arel.sql(order_clause))
 
         if params[:format] == "csv"
+          # The whole member file leaving the building: admin only.
+          return render_forbidden unless current_user.admin?
+
           send_data clients_csv(clients), filename: "clients-#{Date.current}.csv"
         else
           page = paginate(clients).to_a

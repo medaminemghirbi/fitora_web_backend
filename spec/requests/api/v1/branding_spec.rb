@@ -2,9 +2,22 @@ require "rails_helper"
 
 RSpec.describe "Api::V1::Branding", type: :request do
   let(:admin) { create(:user, :admin) }
-  let!(:company) { create(:company, admin: admin, name: "Power Gym", primary_color: "#ff5500") }
+  # Branding shows on Pro (and the trial) only; Starter's is below.
+  let!(:company) { create(:company, :pro, admin: admin, name: "Power Gym", primary_color: "#ff5500") }
 
   describe "GET /api/v1/branding" do
+    it "shows Fitora's look on Starter — the gym's colour and logo are kept, not shown" do
+      company.subscription.update!(plan: :starter)
+      company.logo.attach(fixture_file_upload("sample.png", "image/png"))
+
+      get "/api/v1/branding", headers: auth_headers(admin)
+
+      body = response.parsed_body["branding"]
+      expect(body["primary_color"]).to be_nil
+      expect(body["logo_url"]).to be_nil
+      expect(company.reload.primary_color).to eq("#ff5500")
+    end
+
     it "returns the company's name, primary color, and logo for the admin" do
       get "/api/v1/branding", headers: auth_headers(admin)
 

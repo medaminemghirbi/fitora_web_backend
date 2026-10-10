@@ -99,3 +99,10 @@ end
 Rack::Attack.throttled_responder = lambda do |_request|
   [ 429, { "Content-Type" => "application/json" }, [ { error: "rate_limited" }.to_json ] ]
 end
+
+# The mobile app's key lookup is public: a coach key lists a salle's team.
+# Keys are long and random, but nothing unauthenticated takes unlimited
+# guesses.
+Rack::Attack.throttle("app_config/ip", limit: 20, period: 1.minute) do |req|
+  req.ip if req.get? && req.path.match?(%r{\A/api/v1/tenants/[^/]+/app_config\z})
+end

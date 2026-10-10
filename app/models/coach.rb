@@ -1,4 +1,5 @@
 class Coach < ApplicationRecord
+  include UnmaskedEmail
   belongs_to :company
 
   has_many :sessions, dependent: :nullify

@@ -18,7 +18,7 @@ class SuperadminCompanySerializer
       admin: {
         id: company.admin.id,
         full_name: company.admin.full_name,
-        email: company.admin.email,
+        email: EmailMask.call(company.admin.email),
         phone: company.admin.phone,
         companies_count: company.admin.companies.size
       },

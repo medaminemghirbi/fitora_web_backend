@@ -94,6 +94,7 @@ RSpec.describe "Access lock", type: :request do
     end
 
     it "still switches to another salle of theirs" do
+      company.subscription.update!(plan: :pro)
       other = create(:company, admin: admin)
 
       post "/api/v1/companies/#{other.id}/switch", headers: auth_headers(admin)

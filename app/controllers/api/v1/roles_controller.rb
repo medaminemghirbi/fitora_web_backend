@@ -5,6 +5,9 @@ module Api
     class RolesController < BaseController
       before_action :require_company!
       before_action :require_admin!
+      # Reading the roles stays open (the team page assigns them); shaping
+      # them — custom roles, permissions — is a Pro tool.
+      before_action :require_pro!, only: [ :create, :update, :destroy ]
       before_action :set_role, only: [ :update, :destroy ]
 
       # GET /api/v1/roles

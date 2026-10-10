@@ -17,7 +17,7 @@ class BookingSerializer
       client: {
         id: booking.client.id,
         full_name: booking.client.full_name,
-        email: booking.client.email,
+        email: EmailMask.call(booking.client.email),
         phone: booking.client.phone
       },
       session: {

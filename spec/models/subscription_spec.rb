@@ -127,6 +127,38 @@ RSpec.describe Subscription do
     it "is not a trial for a gym paying normally" do
       expect(paid_until(Date.current.end_of_month)).not_to be_trial
     end
+
+    it "opens on nothing but the trial: no plan, no billing period" do
+      subscription = described_class.start_trial!(company.admin, currency: "TND")
+
+      expect(subscription).to be_trial
+      expect(subscription.plan).to be_nil
+      expect(subscription.billing_period).to be_nil
+      expect(subscription.invoices.sole.plan).to be_nil
+      # Nothing to price yet — and nothing crashes asking.
+      expect(subscription.monthly_cents).to be_nil
+      expect(subscription.arrears_cents).to eq(0)
+      # The trial is Starter-level: every Pro feature stays locked.
+      expect(subscription).not_to be_member_app
+      expect(subscription).not_to be_multi_salle
+      expect(subscription).not_to be_pro_features
+    end
+
+    it "issues no invoice before a plan is chosen" do
+      subscription = described_class.start_trial!(company.admin, currency: "TND")
+
+      expect { subscription.issue_invoice!(issued_by: nil) }.to raise_error(Subscription::PlanNotChosen)
+      expect(subscription.invoices.count).to eq(1)
+    end
+
+    it "keeps a plan for good once the account has paid" do
+      subscription = described_class.start_trial!(company.admin, currency: "TND")
+      subscription.update!(plan: :pro)
+      subscription.issue_invoice!(issued_by: nil)
+
+      expect(subscription.update(plan: nil)).to be(false)
+      expect(subscription.errors[:plan]).to be_present
+    end
   end
 
   describe "#multi_salle? — opening another salle" do
@@ -138,11 +170,22 @@ RSpec.describe Subscription do
       expect(paid_until(Date.current.end_of_month)).not_to be_multi_salle
     end
 
-    it "is open on the free trial, like the member app" do
+    it "is locked on the free trial, like every Pro feature" do
       subscription = create(:subscription, company: company)
       create(:invoice, :trial, company: company, period_start: Date.current, period_end: Date.current + 13)
 
-      expect(subscription.reload).to be_multi_salle
+      expect(subscription.reload).not_to be_multi_salle
+      expect(subscription).not_to be_member_app
+      expect(subscription).not_to be_pro_features
+    end
+
+    it "stays locked when Pro is picked during the trial, until Pro is paid" do
+      subscription = described_class.start_trial!(company.admin, currency: "TND")
+      subscription.update!(plan: :pro)
+      expect(subscription).not_to be_pro_features
+
+      subscription.issue_invoice!(issued_by: nil)
+      expect(subscription.reload).to be_pro_features
     end
   end
 

@@ -12,6 +12,11 @@
 # is the first period, given away: an invoice like any other, flagged
 # `trial` so the account is shown as trying Fitora rather than as already on
 # a plan it never chose.
+#
+# A trial account has NO plan and no billing period — nil, not a default.
+# The superadmin picks both when the first payment is set up, and no
+# invoice can be issued before a plan is chosen. Once an account has paid,
+# it always has a plan.
 class Subscription < ApplicationRecord
   belongs_to :admin, class_name: "User", inverse_of: :subscription
   has_many :invoices, dependent: :destroy
@@ -35,9 +40,15 @@ class Subscription < ApplicationRecord
   attribute :billing_period, :integer
   enum :billing_period, BILLING_PERIODS
   attribute :plan, :string
-  enum :plan, PLANS, validate: true
+  enum :plan, PLANS, validate: { allow_nil: true }
 
   validates :admin_id, uniqueness: true
+  # Nil is the trial's "nothing chosen yet" — never a paid account's.
+  validates :plan, presence: true, if: :ever_paid?
+
+  # Raised by #issue_invoice! while no plan is chosen: there is no price to
+  # put on the invoice.
+  class PlanNotChosen < StandardError; end
 
   scope :closed, -> { where(active: false) }
 
@@ -46,16 +57,18 @@ class Subscription < ApplicationRecord
   # as trying Fitora rather than as on a plan it never chose. Access is open
   # because the trial invoice covers today.
   def self.start_trial!(admin, currency:)
-    subscription = admin.create_subscription!(active: true, billing_period: :monthly, plan: :starter)
+    # No plan, no billing period: the trial is all the account is on.
+    subscription = admin.create_subscription!(active: true, plan: nil, billing_period: nil)
     subscription.invoices.create!(
       number: Invoice.next_number,
       period_start: Date.current,
       period_end: Date.current + (TRIAL_DAYS - 1),
       amount_cents: 0,
       trial: true,
-      plan: subscription.plan,
+      plan: nil,
       currency: currency,
-      billing_period: subscription.billing_period,
+      # The column wants one; a free period is not billed on any.
+      billing_period: :monthly,
       issued_at: Time.current,
       notes: "Période d'essai — #{TRIAL_DAYS} jours offerts"
     )
@@ -98,18 +111,28 @@ class Subscription < ApplicationRecord
     billing_company&.time_zone || Time.zone
   end
 
-  # Whether members may sign in to their own app. Pro sells it; the free
-  # trial shows the whole product, so it is open there too.
-  def member_app?
-    pro? || trial?
+  # Everything Pro sells beyond running one salle: several salles and
+  # switching between them, the member app, custom roles & permissions, the
+  # gym's own branding (logo, colour, identifier) and CSV import / export.
+  #
+  # Only a PAID Pro period opens them. The free trial is Starter-level —
+  # every Pro feature stays locked until Pro is bought — and picking Pro
+  # during the trial does not unlock anything before the payment lands.
+  def pro_features?
+    pro? && !trial?
   end
 
-  # Whether the account may open another salle. Starter runs one; Pro runs
-  # as many as the admin likes, and so does the trial, for the same reason
-  # as the member app. A Starter account that already runs several keeps
-  # them: only opening one more is refused (User#may_open_salle?).
+  # Whether members may sign in to their own app: a Pro feature, locked
+  # during the free trial.
+  def member_app?
+    pro_features?
+  end
+
+  # Whether the account may open another salle. Starter — and the free
+  # trial — run one; a paid Pro account runs as many as the admin likes
+  # (User#may_open_salle?).
   def multi_salle?
-    pro? || trial?
+    pro_features?
   end
 
   # ---- what the invoices say ----------------------------------------------
@@ -199,15 +222,22 @@ class Subscription < ApplicationRecord
     [ periods, 1 ].max * period_cents
   end
 
+  # The plan's tariff in the account's currency. nil while no plan is
+  # chosen (the trial) — and so are the three amounts below.
   def price
-    SubscriptionPrice.for(currency, plan: plan)
+    plan && SubscriptionPrice.for(currency, plan: plan)
   end
 
-  def monthly_cents = price.monthly_cents
-  def annual_cents = price.annual_cents
+  def monthly_cents = price&.monthly_cents
+  def annual_cents = price&.annual_cents
 
   def period_cents
     yearly? ? annual_cents : monthly_cents
+  end
+
+  # Whether any period was ever paid for (the trial's free one aside).
+  def ever_paid?
+    persisted? && invoices.where(trial: false).exists?
   end
 
   # Records that money arrived: one invoice for the next period the account
@@ -218,6 +248,8 @@ class Subscription < ApplicationRecord
   # must never rewrite a past invoice — the same rule Contract#base_price
   # follows for a member's own subscription.
   def issue_invoice!(issued_by:, notes: nil)
+    raise PlanNotChosen, "Choose a plan before recording a payment." if plan.nil?
+
     period = next_period
 
     transaction do

@@ -7,8 +7,11 @@ class BookingPolicy < ApplicationPolicy
     staff_access?
   end
 
+  # record is the booking about to be made (unsaved, its session set): a
+  # coach holding `bookings` books onto their own sessions only, the same
+  # narrowing as every other action here.
   def create?
-    staff_access_for_create?
+    staff_access?
   end
 
   def cancel?
@@ -32,12 +35,5 @@ class BookingPolicy < ApplicationPolicy
     return false unless staff&.active? && staff.can?(:bookings)
 
     staff.coach? ? record.session.coach_id == staff.coach_id : true
-  end
-
-  def staff_access_for_create?
-    return true if user.admin?
-
-    staff = user.staff_member
-    staff&.active? && staff.can?(:bookings)
   end
 end

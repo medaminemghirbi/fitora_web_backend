@@ -24,6 +24,10 @@ RSpec.describe "Every route is closed by default", type: :request do
     # Version check — the client asks before it has a session, to tell
     # someone their app is out of date.
     %r{\A/api/v1/app_version\z},
+    # The mobile app becoming one salle's app before anyone signs in: the
+    # salle's member code or coach key in the URL is the credential (long,
+    # random, regeneratable, throttled — Api::V1::TenantsController).
+    %r{\A/api/v1/tenants/[^/]+/app_config\z},
     # Health check and the SPA's own HTML.
     %r{\A/up\z}
   ].freeze
@@ -101,7 +105,7 @@ RSpec.describe "A locked gym answers nothing operational", type: :request do
   # can render the "access closed" screen at all, and `/auth/me` is on
   # AuthController rather than the base for the same reason: someone locked
   # out still has to be able to see who they are signed in as, and sign out.
-  LOCKED_EXEMPT = %r{\A/api/v1/(superadmin|me)/|\A/api/v1/(bootstrap|app_version|auth/me)\z}
+  LOCKED_EXEMPT = %r{\A/api/v1/(superadmin|me)/|\A/api/v1/(bootstrap|app_version|auth/me)\z|\A/api/v1/tenants/[^/]+/app_config\z}
 
   LOCKED_ROUTES = ROUTES.select { |verb, path| verb == :get && !path.match?(LOCKED_EXEMPT) }.freeze
 

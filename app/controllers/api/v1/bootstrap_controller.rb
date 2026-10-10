@@ -63,7 +63,10 @@ module Api
           # that would be refused.
           plan: subscription.plan,
           member_app: subscription.member_app?,
-          multi_salle: subscription.multi_salle?
+          multi_salle: subscription.multi_salle?,
+          # Pro's tools: several salles, custom roles, branding, CSV
+          # import / export. A paid Pro period only — locked on the trial.
+          pro_features: subscription.pro_features?
         }
       end
     end

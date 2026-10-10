@@ -217,10 +217,70 @@ class Company < ApplicationRecord
     admin&.subscription
   end
 
+  # ---- the mobile app's keys ----------------------------------------------
+  # What turns the generic Fitora app into this salle's app: the member code
+  # (members type or scan it) and the coach key (the staff app; it lists the
+  # salle's team to sign in as, so it is longer). No 0/o, 1/l/i: they are
+  # read off a screen and typed. Lowercase, as the app sends them.
+  APP_KEY_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789".chars.freeze
+  APP_KEY_LENGTHS = { member: 8, coach: 12 }.freeze
+
+  def self.find_by_app_key(code)
+    code = code.to_s.strip.downcase
+    return nil if code.blank?
+
+    if (company = find_by(app_code: code)) then [ company, :member ]
+    elsif (company = find_by(coach_key: code)) then [ company, :staff ]
+    end
+  end
+
+  # Both keys, made on first use.
+  def ensure_app_keys!
+    attrs = {}
+    attrs[:app_code] = Company.unique_app_key(:app_code, APP_KEY_LENGTHS[:member]) if app_code.blank?
+    attrs[:coach_key] = Company.unique_app_key(:coach_key, APP_KEY_LENGTHS[:coach]) if coach_key.blank?
+    update_columns(attrs) if attrs.any?
+    self
+  end
+
+  # A new key for one audience; the old one stops pairing at once. Apps
+  # already paired keep working — they talk to the API by login, not key.
+  def regenerate_app_key!(audience)
+    column = audience.to_s == "coach" ? :coach_key : :app_code
+    length = column == :coach_key ? APP_KEY_LENGTHS[:coach] : APP_KEY_LENGTHS[:member]
+    update_columns(column => Company.unique_app_key(column, length))
+    self
+  end
+
+  def self.unique_app_key(column, length)
+    loop do
+      key = Array.new(length) { APP_KEY_ALPHABET.sample(random: SecureRandom) }.join
+      return key unless exists?(column => key)
+    end
+  end
+
   # Whether this salle's members may sign in to their own app — a Pro
-  # account's (or one still on its free trial).
+  # account's (never during the free trial).
   def member_app?
     subscription&.member_app? || false
+  end
+
+  # Pro's tools are open to this salle: its account is on a paid Pro
+  # period. Locked during the free trial. See Subscription#pro_features?.
+  def pro_features?
+    subscription&.pro_features? || false
+  end
+
+  # The logo and colour actually shown — on screens and on contracts. The
+  # gym's own on a paid Pro account; Fitora's on Starter and on the free
+  # trial. Both are kept
+  # either way, so going (back) to Pro brings them back untouched.
+  def brand_logo
+    pro_features? && logo.attached? ? logo : nil
+  end
+
+  def brand_color
+    pro_features? ? primary_color : nil
   end
 
   # What the account's plan costs per month, in the currency it is billed

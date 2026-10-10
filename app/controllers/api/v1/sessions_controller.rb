@@ -3,6 +3,8 @@ module Api
     class SessionsController < BaseController
       before_action :require_company!
       before_action :require_staff!, only: [ :index, :show, :schedule_pdf ]
+      # The printable week is a Pro tool (paid Pro only, locked on the trial).
+      before_action :require_pro!, only: [ :schedule_pdf ]
       before_action :require_session_management!, only: [ :create, :update, :cancel ]
       before_action :set_session, only: [ :show, :update, :cancel ]
 

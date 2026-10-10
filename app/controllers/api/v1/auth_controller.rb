@@ -58,7 +58,7 @@ module Api
             }, status: :forbidden
           end
 
-          return render json: { token: JwtService.for_client(client), account_type: "client", client: ClientSerializer.new(client).as_json }
+          return render json: { token: JwtService.for_client(client), account_type: "client", client: ClientSerializer.new(client, reveal: true).as_json }
         end
 
         render json: { error: "Invalid email or password" }, status: :unauthorized
@@ -115,7 +115,7 @@ module Api
       # GET /api/v1/auth/me
       def me
         if current_client
-          render json: { account_type: "client", client: ClientSerializer.new(current_client).as_json }
+          render json: { account_type: "client", client: ClientSerializer.new(current_client, reveal: true).as_json }
         else
           render json: { account_type: "user", user: UserSerializer.new(current_user).as_json }
         end

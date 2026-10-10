@@ -17,7 +17,7 @@ class StaffMemberSerializer
       user: {
         id: staff_member.user.id,
         full_name: staff_member.user.full_name,
-        email: staff_member.user.email,
+        email: EmailMask.call(staff_member.user.email),
         phone: staff_member.user.phone
       },
       coach_id: staff_member.coach_id

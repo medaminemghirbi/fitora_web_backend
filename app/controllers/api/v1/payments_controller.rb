@@ -3,6 +3,8 @@ module Api
     class PaymentsController < BaseController
       before_action :require_company!
       before_action -> { require_capability!(:payments) }
+      # Money going back out is the admin's call, not the desk's.
+      before_action :require_admin!, only: :refund
       before_action :set_payment, only: [ :show, :refund ]
 
       # GET /api/v1/payments?status=&payment_method=&date=
@@ -15,6 +17,8 @@ module Api
         scope = scope.recent
 
         if params[:format] == "csv"
+          return render_forbidden unless current_user.admin?
+
           send_data payments_csv(scope), filename: "payments-#{Date.current}.csv"
         else
           render json: {
@@ -22,7 +26,9 @@ module Api
             meta: pagination_meta(scope),
             counts: status_counts(searched),
             method_counts: searched.group(:payment_method).count,
-            totals: cash_totals(searched)
+            # Taking money at the desk is `payments`; reading what the gym
+            # has taken in is `revenue`. Without it the strip is simply absent.
+            **(capability?(:revenue) ? { totals: cash_totals(searched) } : {})
           }
         end
       end

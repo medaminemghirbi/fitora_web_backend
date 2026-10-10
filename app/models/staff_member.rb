@@ -17,8 +17,18 @@ class StaffMember < ApplicationRecord
   validates :user_id, uniqueness: { scope: :company_id }
   validate :coach_belongs_to_same_company
   validate :role_belongs_to_same_company
+  # A salle runs with at most one active login on the built-in moderator
+  # role. Other back-office roles (custom ones: "Comptable", "Réception"…)
+  # and coaches are not capped. Checked only when a record would become that
+  # moderator, so a salle that already had two before the rule can still
+  # edit them.
+  validate :one_moderator_per_company, if: :becoming_moderator?
+
+  MODERATOR_ROLE_KEY = "moderator".freeze
 
   scope :active, -> { where(active: true) }
+  # Logins holding the moderator role itself — not every back-office login.
+  scope :moderators, -> { where(coach_id: nil).joins(:assigned_role).where(roles: { key: MODERATOR_ROLE_KEY }) }
 
   def can?(capability)
     permission_keys.include?(capability.to_s)
@@ -51,6 +61,19 @@ class StaffMember < ApplicationRecord
   end
 
   private
+
+  def becoming_moderator?
+    # The association, not coach_id: a coach handed in unsaved has no id yet.
+    return false unless active? && coach.nil? && assigned_role&.key == MODERATOR_ROLE_KEY
+
+    new_record? || will_save_change_to_active? || will_save_change_to_coach_id? ||
+      will_save_change_to_company_id? || will_save_change_to_role_id?
+  end
+
+  def one_moderator_per_company
+    others = StaffMember.active.moderators.where(company_id: company_id).where.not(id: id)
+    errors.add(:base, "This salle already has a moderator.") if others.exists?
+  end
 
   def role_belongs_to_same_company
     return if assigned_role.blank? || company_id.blank?

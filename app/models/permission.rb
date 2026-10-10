@@ -19,10 +19,11 @@ module Permission
     "payments"        => "Payments",
     "reports"         => "Dashboard & reports",
     "revenue"         => "Revenue & financial totals",
-    "checkin"         => "Attendance check-in",
-    # Changing how the gym's software behaves, as opposed to running the gym.
-    # Split out so a moderator can do the second without the first.
-    "settings"        => "Company settings"
+    "checkin"         => "Attendance check-in"
+    # Company settings, staff logins, roles, the subscription and the salles
+    # are not here: they are the admin's alone (require_admin!), never
+    # something a role can be granted. A "settings" key used to sit here
+    # that nothing checked — ticking it gave nothing.
   }.freeze
 
   ALL = CATALOG.keys.freeze

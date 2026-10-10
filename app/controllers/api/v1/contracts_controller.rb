@@ -260,16 +260,22 @@ module Api
 
       # The portfolio is what the ACTIVE contracts were sold for — the frozen
       # prices, never today's catalogue.
+      #
+      # The money figures are `revenue`, like the payments strip: whoever only
+      # sells contracts still sees how many are about to expire, which is
+      # work to do, but not what the portfolio is worth.
       def portfolio_totals(searched)
+        totals = { expiring_soon: expiring_scope(searched).count }
+        return totals unless capability?(:revenue)
+
         active = searched.active
         value = active.sum(:final_price)
         count = active.count
-        {
+        totals.merge(
           portfolio_value: value.to_f,
           average_basket: count.positive? ? (value.to_f / count).round(2) : 0.0,
-          unpaid_value: unpaid_scope(searched).sum(:final_price).to_f,
-          expiring_soon: expiring_scope(searched).count
-        }
+          unpaid_value: unpaid_scope(searched).sum(:final_price).to_f
+        )
       end
 
       def set_contract

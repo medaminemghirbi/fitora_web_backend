@@ -94,4 +94,62 @@ RSpec.describe StaffMember, type: :model do
       expect(build(:staff_member, user: user)).to be_valid
     end
   end
+
+  describe "one moderator per salle" do
+    let(:company) { create(:company) }
+    let!(:moderator) { create(:staff_member, company: company, role: :moderator) }
+
+    it "refuses a second active login on the moderator role" do
+      second = build(:staff_member, company: company, role: :moderator)
+
+      expect(second).not_to be_valid
+      expect(second.errors[:base]).to include("This salle already has a moderator.")
+    end
+
+    it "does not cap back-office logins on a custom role" do
+      accountant = create(:role, company: company, key: "comptable", name: "Comptable", permissions: %w[payments])
+
+      expect(build(:staff_member, company: company, assigned_role: accountant)).to be_valid
+      create(:staff_member, company: company, assigned_role: accountant)
+      expect(build(:staff_member, company: company, assigned_role: accountant)).to be_valid
+    end
+
+    it "refuses to move a custom-role login onto the moderator role while it is taken" do
+      accountant = create(:role, company: company, key: "comptable", name: "Comptable")
+      login = create(:staff_member, company: company, assigned_role: accountant)
+
+      expect(login.update(assigned_role: company.roles.find_by!(key: "moderator"))).to be(false)
+    end
+
+    it "does not count coaches" do
+      expect(build(:staff_member, company: company, role: :coach)).to be_valid
+    end
+
+    it "lets a replacement in once the moderator is deactivated" do
+      moderator.update!(active: false)
+
+      expect(build(:staff_member, company: company, role: :moderator)).to be_valid
+    end
+
+    it "refuses to reactivate a moderator while another is active" do
+      moderator.update!(active: false)
+      create(:staff_member, company: company, role: :moderator)
+
+      expect(moderator.update(active: true)).to be(false)
+    end
+
+    it "refuses to turn a coach into a second moderator by dropping its coach for the moderator role" do
+      coach_login = create(:staff_member, company: company, role: :coach)
+
+      expect(coach_login.update(coach: nil, assigned_role: company.roles.find_by!(key: "moderator"))).to be(false)
+    end
+
+    it "is per salle: another salle takes its own moderator" do
+      expect(build(:staff_member, role: :moderator)).to be_valid
+    end
+
+    it "still lets an existing moderator be edited" do
+      expect(moderator.update(birthdate: Date.new(1990, 1, 1))).to be(true)
+    end
+  end
 end

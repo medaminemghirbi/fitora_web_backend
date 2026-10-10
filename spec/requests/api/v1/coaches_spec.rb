@@ -41,7 +41,9 @@ RSpec.describe "Api::V1::Coaches", type: :request do
       expect(response).to have_http_status(:ok)
       body = response.parsed_body["coach"]
       expect(body["has_login"]).to be true
-      expect(body["login_email"]).to eq("coach@example.com")
+      # Masked in the response (EmailMask); the account itself has the whole address.
+      expect(body["login_email"]).to eq("co****ch@example.com")
+      expect(coach.reload.staff_member.user.email).to eq("coach@example.com")
 
       post "/api/v1/auth/login", params: { email: "coach@example.com", password: "password123" }
       expect(response).to have_http_status(:ok)
@@ -57,7 +59,7 @@ RSpec.describe "Api::V1::Coaches", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(coach.reload.staff_member.id).to eq(first_staff_member_id)
-      expect(response.parsed_body["coach"]["login_email"]).to eq("coach2-new@example.com")
+      expect(coach.staff_member.user.reload.email).to eq("coach2-new@example.com")
     end
 
     it "forbids a coach — another coach's login is not theirs to set" do
