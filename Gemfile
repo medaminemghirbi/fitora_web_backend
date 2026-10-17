@@ -61,7 +61,7 @@ gem "rqrcode"
 # Background jobs (expiry scans, notification fan-out) + the ActionCable
 # Redis pub/sub backend for real-time notifications. Redis already runs
 # locally; set REDIS_URL to point elsewhere.
-gem "redis", "~> 5"
+gem "redis", "~> 6"
 gem "sidekiq", "~> 7"
 gem "sidekiq-cron", "~> 2"
 
