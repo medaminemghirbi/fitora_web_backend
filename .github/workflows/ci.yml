@@ -100,7 +100,7 @@ jobs:
       # The web UI's request specs render its pages, which link the built
       # stylesheets and scripts (Propshaft refuses a missing asset).
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
