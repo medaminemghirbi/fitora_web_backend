@@ -83,7 +83,7 @@ gem "rotp", "~> 6.3"
 # Redis pub/sub backend for real-time notifications. Redis already runs
 # locally; set REDIS_URL to point elsewhere.
 gem "redis", "~> 5"
-gem "sidekiq", "~> 7"
+gem "sidekiq", "~> 8"
 gem "sidekiq-cron", "~> 2"
 
 group :development, :test do
